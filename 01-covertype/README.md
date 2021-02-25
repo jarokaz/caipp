@@ -4,7 +4,7 @@ This hands-on lab guides you through the process of implementing a TensorFlow Ex
 
 The below diagram represents the workflow orchestrated by the pipeline.
 
-![TFX_CAIP](/images/tfx-caip.png).
+![TFX_CAIP](/images/tfx-ucaip.png).
 
 1. Training data in the CSV format is ingested from a GCS location using *CsvExampleGen*. The URI to the data root is passed as a runtime parameter. The *CsvExampleGen* component splits the source data into training and evaluation splits and converts the data into the TFRecords format.
 2. The *StatisticsGen* component generates statistics for both splits.
