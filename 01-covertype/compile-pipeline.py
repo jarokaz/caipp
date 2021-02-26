@@ -18,7 +18,7 @@ from absl import app
 from absl import flags
 from absl import logging
 
-from aiplatform.pipelines import client
+from tfx.orchestration import data_types
 from tfx.orchestration.kubeflow.v2 import kubeflow_v2_dag_runner
 
 import config
@@ -44,27 +44,38 @@ _beam_pipeline_args = [
     '--direct_num_workers=0',
 ]
 
+# Define runtime parameters
+_train_steps = data_types.RuntimeParameter(
+    name='train_steps',
+    ptype=int,
+    default=config.DEFAULT_TRAIN_STEPS
+  )
+
+_eval_steps = data_types.RuntimeParameter(
+    name='eval_steps',
+    ptype=int,
+    default=config.DEFAULT_EVAL_STEPS
+  )
+
+_data_root_uri = data_types.RuntimeParameter( 
+      name='data_root_uri',
+      ptype=str,
+      default=config.DEFAULT_DATA_ROOT)
+      
 FLAGS = flags.FLAGS
-flags.DEFINE_integer('train_steps', 100, 'Training steps')
-flags.DEFINE_integer('eval_steps', 100, 'Evaluation steps')
-flags.DEFINE_string('data_root_uri', 'gs://workshop-datasets/covertype/small', 'Data root')
-flags.DEFINE_string('pipeline_root', 'gs://techsummit-bucket/covertype-classifier-pipeline', 'Pipeline root')
+flags.DEFINE_string('pipeline_spec_path', 'pipeline.json', 'Pipeline spec path')
 flags.DEFINE_string('project_id', 'jk-mlops-dev', 'Project ID')
-flags.DEFINE_string('region', 'us-central1', 'Region')
-flags.DEFINE_string('api_key', 'None', 'API Key')
 
 def main(argv):
     del argv
-
-    logging.set_verbosity(logging.INFO)
 
     # Create pipeline
     pipeline_def = pipeline.create_pipeline(
         pipeline_name=config.PIPELINE_NAME,
         pipeline_root=config.DEFAULT_PIPELINE_ROOT,
-        data_root_uri=config.DEFAULT_DATA_ROOT,
-        train_steps=config.DEFAULT_TRAIN_STEPS,
-        eval_steps=config.DEFAULT_EVAL_STEPS,
+        data_root_uri=_data_root_uri,
+        train_steps=_train_steps,
+        eval_steps=_eval_steps,
         beam_pipeline_args=_beam_pipeline_args)
 
     # Create Kubeflow V2 runner
@@ -75,29 +86,10 @@ def main(argv):
 
     runner = kubeflow_v2_dag_runner.KubeflowV2DagRunner(
         config=runner_config,
-        output_filename=PIPELINE_SPEC_PATH)
+        output_filename=FLAGS.pipeline_spec_path)
 
     # Compile the pipeline
     runner.run(pipeline_def)
-
-    # Submit the pipeline run
-    caipp_client = client.Client(
-        project_id=FLAGS.project_id,
-        region=FLAGS.region,
-        api_key=FLAGS.api_key
-    )
-
-    # Set runtime parameters
-    pipeline_params = {
-        'train_steps': FLAGS.train_steps,
-        'eval_steps': FLAGS.eval_steps,
-    }
-
-    caipp_client.create_run_from_job_spec(
-        job_spec_path=PIPELINE_SPEC_PATH,
-        pipeline_root=FLAGS.pipeline_root,
-        #parameter_values=pipeline_params
-    )
 
 if __name__ == '__main__':
     app.run(main)
