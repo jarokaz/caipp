@@ -22,7 +22,7 @@ GCP_REGION=os.getenv("GCP_REGION", "us-central1")
 PROJECT_ID=os.getenv("PROJECT_ID", "dougkelly-sandbox")
 CUSTOM_SERVICE_ACCOUNT=os.getenv("CUSTOM_SERVICE_ACCOUNT", "tfx-tuner-caip-service-account@dougkelly-sandbox.iam.gserviceaccount.com")    
 # Lab user runtime environment settings
-PIPELINE_NAME=os.getenv("PIPELINE_NAME", "covertype_continuous_training")
+PIPELINE_NAME=os.getenv("PIPELINE_NAME", "covertype-continuous-training")
 MODEL_NAME=os.getenv("MODEL_NAME", "covertype_classifier")  
 PIPELINE_IMAGE=os.getenv("PIPELINE_IMAGE", "gcr.io/jk-mlops-dev/covertype-tfx")
 RUNTIME_VERSION=os.getenv("RUNTIME_VERSION", "2.4")

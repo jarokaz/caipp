@@ -47,8 +47,8 @@ _beam_pipeline_args = [
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('train_steps', 100, 'Training steps')
 flags.DEFINE_integer('eval_steps', 100, 'Evaluation steps')
+flags.DEFINE_string('data_root_uri', 'gs://workshop-datasets/covertype/small', 'Data root')
 flags.DEFINE_string('pipeline_root', 'gs://techsummit-bucket/covertype-classifier-pipeline', 'Pipeline root')
-flags.DEFINE_string('pipeline_name', 'covertype-classifier-pipeline', 'Pipeline name')
 flags.DEFINE_string('project_id', 'jk-mlops-dev', 'Project ID')
 flags.DEFINE_string('region', 'us-central1', 'Region')
 flags.DEFINE_string('api_key', 'None', 'API Key')
@@ -60,9 +60,9 @@ def main(argv):
 
     # Create pipeline
     pipeline_def = pipeline.create_pipeline(
-        pipeline_name=FLAGS.pipeline_name,
+        pipeline_name=config.PIPELINE_NAME,
         pipeline_root=FLAGS.pipeline_root,
-        data_root_uri=config.DATA_ROOT_URI,
+        data_root_uri=FLAGS.pipeline_root,
         train_steps=FLAGS.train_steps,
         eval_steps=FLAGS.eval_steps,
         beam_pipeline_args=_beam_pipeline_args)
@@ -70,7 +70,7 @@ def main(argv):
     # Create Kubeflow V2 runner
     runner_config = kubeflow_v2_dag_runner.KubeflowV2DagRunnerConfig(
         project_id=FLAGS.project_id,
-        display_name=FLAGS.pipeline_name,
+        display_name=config.PIPELINE_NAME,
         default_image=config.PIPELINE_IMAGE)
 
     runner = kubeflow_v2_dag_runner.KubeflowV2DagRunner(
@@ -78,9 +78,7 @@ def main(argv):
         output_filename=PIPELINE_SPEC_PATH)
 
     # Compile the pipeline
-    runner.compile(pipeline_def)
-
-    return
+    runner.run(pipeline_def)
 
     # Submit the pipeline run
     caipp_client = client.Client(
