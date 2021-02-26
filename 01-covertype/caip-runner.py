@@ -62,9 +62,9 @@ def main(argv):
     pipeline_def = pipeline.create_pipeline(
         pipeline_name=config.PIPELINE_NAME,
         pipeline_root=FLAGS.pipeline_root,
-        data_root_uri=FLAGS.pipeline_root,
-        train_steps=FLAGS.train_steps,
-        eval_steps=FLAGS.eval_steps,
+        data_root_uri=config.DEFAULT_DATA_ROOT,
+        train_steps=config.DEFAULT_TRAIN_STEPS,
+        eval_steps=config.DEFAULT_EVAL_STEPS,
         beam_pipeline_args=_beam_pipeline_args)
 
     # Create Kubeflow V2 runner
@@ -87,8 +87,15 @@ def main(argv):
         api_key=FLAGS.api_key
     )
 
+    # Set runtime parameters
+    pipeline_params = {
+        'train_steps': FLAGS.train_steps,
+        'eval_steps': FLAGS.eval_steps,
+    }
+
     caipp_client.create_run_from_job_spec(
-        job_spec_path=PIPELINE_SPEC_PATH
+        job_spec_path=PIPELINE_SPEC_PATH,
+        #parameter_values=pipeline_params
     )
 
 if __name__ == '__main__':
