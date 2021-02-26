@@ -48,7 +48,7 @@ FLAGS = flags.FLAGS
 flags.DEFINE_integer('train_steps', 100, 'Training steps')
 flags.DEFINE_integer('eval_steps', 100, 'Evaluation steps')
 flags.DEFINE_string('pipeline_root', '/tmp/pipeline_root', 'Pipeline root')
-flags.DEFINE_string('pipeline_name', 'covertype_classifier_pipeline', 'Pipeline name')
+flags.DEFINE_string('pipeline_name', 'covertype-classifier-pipeline', 'Pipeline name')
 
 def main(argv):
     del argv

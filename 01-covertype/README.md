@@ -20,3 +20,12 @@ The below diagram represents the workflow orchestrated by the pipeline.
 12. If the new model is blessed by the *Evaluator* and *InfraValidator*, the *Pusher* deploys the model to AI Platform Prediction.
 
 The ML model utilized in the labs  is a multi-class classifier that predicts the type of  forest cover from cartographic data. The model is trained on the [Covertype Data Set](/datasets/covertype/README.md) dataset.
+
+
+### Building a pipeline container
+
+```
+export PROJECT_ID=jk-mlops-dev
+export IMAGE_NAME=gcr.io/$PROJECT_ID/covertype-tfx
+gcloud builds submit --tag $IMAGE_NAME .
+```

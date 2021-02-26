@@ -12,97 +12,86 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""KFP runner configuration"""
+"""AI Platform Pipelines runner configuration"""
 
-import kfp
+from absl import app
+from absl import flags
+from absl import logging
 
-from tfx.orchestration import data_types
-from tfx.orchestration.kubeflow import kubeflow_dag_runner
+from aiplatform.pipelines import client
+from tfx.orchestration.kubeflow.v2 import kubeflow_v2_dag_runner
 
-from typing import Optional, Dict, List, Text
-from distutils.util import strtobool
+import config
+import pipeline 
 
-from config import Config
-from pipeline import create_pipeline
-
-if __name__ == '__main__':
+PIPELINE_SPEC_PATH = 'pipeline.json'
 
   # Set the values for the compile time parameters
-  ai_platform_training_args = {
-      'project': Config.PROJECT_ID,
-      'region': Config.GCP_REGION,
-      'serviceAccount': Config.CUSTOM_SERVICE_ACCOUNT,
-      'masterConfig': {
-          'imageUri': Config.TFX_IMAGE,
-      }
-  }
+_ai_platform_training_args = {
+    'project': config.PROJECT_ID,
+    'region': config.GCP_REGION,
+    'serviceAccount': config.CUSTOM_SERVICE_ACCOUNT,
+    'masterConfig': {
+        'imageUri': config.PIPELINE_IMAGE,
+    }
+}
 
-  ai_platform_serving_args = {
-      'project_id': Config.PROJECT_ID,
-      'model_name': Config.MODEL_NAME,
-      'runtimeVersion': Config.RUNTIME_VERSION,
-      'pythonVersion': Config.PYTHON_VERSION,
-      'regions': [Config.GCP_REGION]
-  }
+# Pipeline arguments for Beam powered Components.
+_beam_pipeline_args = [
+    '--direct_running_mode=multi_processing',
+    # 0 means auto-detect based on on the number of CPUs available
+    # during execution time.
+    '--direct_num_workers=0',
+]
 
-  beam_tmp_folder = '{}/beam/tmp'.format(Config.ARTIFACT_STORE_URI)
-  beam_pipeline_args = [
-      '--runner=DataflowRunner',
-      '--experiments=shuffle_mode=auto',
-      '--project=' + Config.PROJECT_ID,
-      '--temp_location=' + beam_tmp_folder,
-      '--region=' + Config.GCP_REGION,
-  ]
-    
-  
-  # Set the default values for the pipeline runtime parameters   
-  data_root_uri = data_types.RuntimeParameter(
-      name='data-root-uri',
-      default=Config.DATA_ROOT_URI,
-      ptype=Text
-  )
+FLAGS = flags.FLAGS
+flags.DEFINE_integer('train_steps', 100, 'Training steps')
+flags.DEFINE_integer('eval_steps', 100, 'Evaluation steps')
+flags.DEFINE_string('pipeline_root', 'gs://techsummit-bucket/covertype-classifier-pipeline', 'Pipeline root')
+flags.DEFINE_string('pipeline_name', 'covertype-classifier-pipeline', 'Pipeline name')
+flags.DEFINE_string('project_id', 'jk-mlops-dev', 'Project ID')
+flags.DEFINE_string('region', 'us-central1', 'Region')
+flags.DEFINE_string('api_key', 'None', 'API Key')
 
-  train_steps = data_types.RuntimeParameter(
-      name='train-steps',
-      default=5000,
-      ptype=int
-  )
-    
-  eval_steps = data_types.RuntimeParameter(
-      name='eval-steps',
-      default=500,
-      ptype=int
-  )
+def main(argv):
+    del argv
 
-  pipeline_root = '{}/{}/{}'.format(
-      Config.ARTIFACT_STORE_URI, 
-      Config.PIPELINE_NAME,
-      kfp.dsl.RUN_ID_PLACEHOLDER)
-    
-  # Set KubeflowDagRunner settings.
-  metadata_config = kubeflow_dag_runner.get_default_kubeflow_metadata_config()
+    logging.set_verbosity(logging.INFO)
 
-  runner_config = kubeflow_dag_runner.KubeflowDagRunnerConfig(
-      kubeflow_metadata_config = metadata_config,
-      pipeline_operator_funcs = kubeflow_dag_runner.get_default_pipeline_operator_funcs(
-          strtobool(Config.USE_KFP_SA)),
-      tfx_image=Config.TFX_IMAGE)
+    # Create pipeline
+    pipeline_def = pipeline.create_pipeline(
+        pipeline_name=FLAGS.pipeline_name,
+        pipeline_root=FLAGS.pipeline_root,
+        data_root_uri=config.DATA_ROOT_URI,
+        train_steps=FLAGS.train_steps,
+        eval_steps=FLAGS.eval_steps,
+        beam_pipeline_args=_beam_pipeline_args)
 
-  # Compile the pipeline.
-  kubeflow_dag_runner.KubeflowDagRunner(config=runner_config).run(
-      create_pipeline(
-        pipeline_name=Config.PIPELINE_NAME,
-        pipeline_root=pipeline_root,
-        data_root_uri=data_root_uri,
-        train_steps=train_steps,
-        eval_steps=eval_steps,
-        enable_tuning=strtobool(Config.ENABLE_TUNING),          
-        ai_platform_training_args=ai_platform_training_args,
-        ai_platform_serving_args=ai_platform_serving_args,
-        beam_pipeline_args=beam_pipeline_args))
-     
-        
+    # Create Kubeflow V2 runner
+    runner_config = kubeflow_v2_dag_runner.KubeflowV2DagRunnerConfig(
+        project_id=FLAGS.project_id,
+        display_name=FLAGS.pipeline_name,
+        default_image=config.PIPELINE_IMAGE)
 
+    runner = kubeflow_v2_dag_runner.KubeflowV2DagRunner(
+        config=runner_config,
+        output_filename=PIPELINE_SPEC_PATH)
 
+    # Compile the pipeline
+    runner.compile(pipeline_def)
 
+    # Submit the pipeline run
+    caipp_client = client.Client(
+        project_id=FLAGS.project_id,
+        region=FLAGS.region,
+        api_key=FLAGS.api_key
+    )
 
+    caipp_client.create_run_from_job_spec(
+        job_spec_path=PIPELINE_SPEC_PATH
+    )
+
+if __name__ == '__main__':
+    app.run(main)
+
+ 
