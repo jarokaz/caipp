@@ -61,7 +61,7 @@ def main(argv):
     # Create pipeline
     pipeline_def = pipeline.create_pipeline(
         pipeline_name=config.PIPELINE_NAME,
-        pipeline_root=FLAGS.pipeline_root,
+        pipeline_root=config.DEFAULT_PIPELINE_ROOT,
         data_root_uri=config.DEFAULT_DATA_ROOT,
         train_steps=config.DEFAULT_TRAIN_STEPS,
         eval_steps=config.DEFAULT_EVAL_STEPS,
@@ -95,6 +95,7 @@ def main(argv):
 
     caipp_client.create_run_from_job_spec(
         job_spec_path=PIPELINE_SPEC_PATH,
+        pipeline_root=FLAGS.pipeline_root,
         #parameter_values=pipeline_params
     )
 

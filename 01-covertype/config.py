@@ -32,5 +32,5 @@ SQL_LITE_PATH=os.getenv("SQL_LITE_PATH", "/tmp/pipeline_root/metadata.sqlite")
 DEFAULT_TRAIN_STEPS=os.getenv("DEFAULT_TRAIN_STEPS", 10)
 DEFAULT_EVAL_STEPS=os.getenv("DEFAULT_EVAL_STEPS", 10)
 DEFAULT_DATA_ROOT=os.getenv("DEFAULT_DATA_ROOT", "gs://workshop-datasets/covertype/small")
-    
+DEFAULT_PIPELINE_ROOT=os.getenv("DEFAULT_PIPELINE_ROOT", "/tmp/pipeline_root")
     
