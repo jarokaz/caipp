@@ -80,6 +80,8 @@ def main(argv):
     # Compile the pipeline
     runner.compile(pipeline_def)
 
+    return
+
     # Submit the pipeline run
     caipp_client = client.Client(
         project_id=FLAGS.project_id,

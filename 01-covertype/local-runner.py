@@ -25,17 +25,6 @@ from tfx.orchestration.metadata import sqlite_metadata_connection_config
 import config
 import pipeline 
 
-
-  # Set the values for the compile time parameters
-_ai_platform_training_args = {
-    'project': config.PROJECT_ID,
-    'region': config.GCP_REGION,
-    'serviceAccount': config.CUSTOM_SERVICE_ACCOUNT,
-    'masterConfig': {
-        'imageUri': config.TFX_IMAGE,
-    }
-}
-
 # Pipeline arguments for Beam powered Components.
 _beam_pipeline_args = [
     '--direct_running_mode=multi_processing',
@@ -48,18 +37,18 @@ FLAGS = flags.FLAGS
 flags.DEFINE_integer('train_steps', 100, 'Training steps')
 flags.DEFINE_integer('eval_steps', 100, 'Evaluation steps')
 flags.DEFINE_string('pipeline_root', '/tmp/pipeline_root', 'Pipeline root')
-flags.DEFINE_string('pipeline_name', 'covertype-classifier-pipeline', 'Pipeline name')
+flags.DEFINE_string('data_root_uri', 'gs://workshop-datasets/covertype/small', 'Data root')
 
 def main(argv):
     del argv
 
     logging.set_verbosity(logging.INFO)
     pipeline_def = pipeline.create_pipeline(
-        pipeline_name=FLAGS.pipeline_name,
+        pipeline_name=config.PIPELINE_NAME,
         pipeline_root=FLAGS.pipeline_root,
-        data_root_uri=config.DATA_ROOT_URI,
-        train_steps=FLAGS.train_steps,
+        data_root_uri=FLAGS.data_root_uri,
         eval_steps=FLAGS.eval_steps,
+        train_steps=FLAGS.train_steps,
         beam_pipeline_args=_beam_pipeline_args)
 
     print('*****')

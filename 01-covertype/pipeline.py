@@ -38,8 +38,8 @@ from tfx.dsl.experimental import latest_blessed_model_resolver
 from tfx.extensions.google_cloud_ai_platform.pusher import executor as ai_platform_pusher_executor
 from tfx.extensions.google_cloud_ai_platform.trainer import executor as ai_platform_trainer_executor
 from tfx.extensions.google_cloud_ai_platform.tuner.component import Tuner
-from tfx.orchestration import data_types
 from tfx.orchestration import pipeline
+from tfx.orchestration import data_types
 from tfx.orchestration.metadata import sqlite_metadata_connection_config
 from tfx.orchestration.kubeflow.proto import kubeflow_pb2
 from tfx.proto import example_gen_pb2
@@ -64,40 +64,15 @@ TRAIN_MODULE_FILE='train.py'
 
 
 def create_pipeline(pipeline_name: Text, 
-                      pipeline_root: Text, 
-                      data_root_uri: Text,
-                      train_steps: int,
-                      eval_steps: int,
-                      beam_pipeline_args: List[Text],
-                      ai_platform_training_args: Optional[Dict[Text, Text]] = None, 
-                      enable_tuning: Optional[bool] = False,      
-                      enable_cache: Optional[bool] = False) -> pipeline.Pipeline:
-  """Trains and deploys the Keras Covertype Classifier with TFX and AI Platform Pipelines.
-  Args:
-    pipeline_name: name of the TFX pipeline being created.
-    pipeline_root: root directory of the pipeline. Should be a valid GCS path.
-    data_root_uri: uri of the dataset.
-    train_steps: runtime parameter for number of model training steps for the Trainer component.
-    eval_steps: runtime parameter for number of model evaluation steps for the Trainer component.
-    enable_tuning: If True, the hyperparameter tuning through CloudTuner is
-      enabled.    
-    ai_platform_training_args: Args of CAIP training job. Please refer to
-      https://cloud.google.com/ml-engine/reference/rest/v1/projects.jobs#Job
-      for detailed description.
-    ai_platform_serving_args: Args of CAIP model deployment. Please refer to
-      https://cloud.google.com/ml-engine/reference/rest/v1/projects.models
-      for detailed description.
-    beam_pipeline_args: Optional list of beam pipeline options. Please refer to
-      https://cloud.google.com/dataflow/docs/guides/specifying-exec-params#setting-other-cloud-dataflow-pipeline-options.
-      When this argument is not provided, the default is to use GCP
-      DataflowRunner with 50GB disk size as specified in this function. If an
-      empty list is passed in, default specified by Beam will be used, which can
-      be found at
-      https://cloud.google.com/dataflow/docs/guides/specifying-exec-params#setting-other-cloud-dataflow-pipeline-options
-    enable_cache: Optional boolean
-  Returns:
-    A TFX pipeline object.
-  """
+                    pipeline_root: Text, 
+                    data_root_uri: data_types.RuntimeParameter,
+                    train_steps: data_types.RuntimeParameter,
+                    eval_steps: data_types.RuntimeParameter,
+                    beam_pipeline_args: List[Text],
+                    ai_platform_training_args: Optional[Dict[Text, Text]] = None, 
+                    enable_tuning: Optional[bool] = False,      
+                    enable_cache: Optional[bool] = False) -> pipeline.Pipeline:
+  """Trains and deploys the Keras Covertype Classifier with TFX and AI Platform Pipelines."""
 
   # Brings data into the pipeline and splits the data into training and eval splits
   output_config = example_gen_pb2.Output(
@@ -242,10 +217,10 @@ def create_pipeline(pipeline_name: Text,
 
   components=[
       examplegen, 
-      statisticsgen,
-      schemagen,      
-      import_schema,
-      examplevalidator,
+      #statisticsgen,
+      #schemagen,      
+      #import_schema,
+      #examplevalidator,
       # transform,
       # trainer, 
       # resolver, 

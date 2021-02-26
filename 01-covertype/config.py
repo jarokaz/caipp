@@ -11,27 +11,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""The pipeline configurations.
+"""Compile time parameters.
 """
 
 import os
-
 
 """Sets configuration vars."""
 # Lab user environment resource settings
 GCP_REGION=os.getenv("GCP_REGION", "us-central1")
 PROJECT_ID=os.getenv("PROJECT_ID", "dougkelly-sandbox")
-ARTIFACT_STORE_URI=os.getenv("ARTIFACT_STORE_URI", "gs://techsummit-bucket")
 CUSTOM_SERVICE_ACCOUNT=os.getenv("CUSTOM_SERVICE_ACCOUNT", "tfx-tuner-caip-service-account@dougkelly-sandbox.iam.gserviceaccount.com")    
 # Lab user runtime environment settings
 PIPELINE_NAME=os.getenv("PIPELINE_NAME", "covertype_continuous_training")
-MODEL_NAME=os.getenv("MODEL_NAME", "covertype_classifier")
-DATA_ROOT_URI=os.getenv("DATA_ROOT_URI", "gs://workshop-datasets/covertype/small")  
+MODEL_NAME=os.getenv("MODEL_NAME", "covertype_classifier")  
 PIPELINE_IMAGE=os.getenv("PIPELINE_IMAGE", "gcr.io/jk-mlops-dev/covertype-tfx")
 RUNTIME_VERSION=os.getenv("RUNTIME_VERSION", "2.4")
 PYTHON_VERSION=os.getenv("PYTHON_VERSION", "3.7")    
-USE_KFP_SA=os.getenv("USE_KFP_SA", "False")
 ENABLE_TUNING=os.getenv("ENABLE_TUNING", "True") 
 SQL_LITE_PATH=os.getenv("SQL_LITE_PATH", "/tmp/pipeline_root/metadata.sqlite")
+
     
     
