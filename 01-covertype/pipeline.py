@@ -19,9 +19,9 @@ import tensorflow_model_analysis as tfma
 
 from absl import app
 from absl import flags
-from typing import Optional, Dict, List, Text
 
-from tfx.dsl.components.base import executor_spec
+
+
 from tfx.components import Evaluator
 from tfx.components import CsvExampleGen
 from tfx.components import ExampleValidator
@@ -54,6 +54,10 @@ from tfx.types.standard_artifacts import ModelBlessing
 from tfx.types.standard_artifacts import InfraBlessing
 from tfx.types.standard_artifacts import Schema
 
+from typing import Optional, Dict, List, Text, Union
+Trainer_Executor = Union[trainer_executor.GenericExecutor, 
+                         ai_platform_trainer_executor.GenericExecutor]
+
 import features
 import config
 
@@ -68,7 +72,8 @@ def create_pipeline(pipeline_name: Text,
                     train_steps: data_types.RuntimeParameter,
                     eval_steps: data_types.RuntimeParameter,
                     beam_pipeline_args: List[Text],
-                    ai_platform_training_args: Optional[Dict[Text, Text]] = None, 
+                    custom_executor_spec: Optional[Trainer_Executor] = None,
+                    custom_config: Optional[dict] = None, 
                     enable_tuning: Optional[bool] = False,      
                     enable_cache: Optional[bool] = False) -> pipeline.Pipeline:
   """Trains and deploys the Keras Covertype Classifier with TFX and AI Platform Pipelines."""
@@ -106,11 +111,6 @@ def create_pipeline(pipeline_name: Text,
       schema=import_schema.outputs.result,
       module_file=TRANSFORM_MODULE_FILE)
 
-  custom_config = None
-  if ai_platform_training_args:
-      custom_config = {
-          ai_platform_trainer_executor.TRAINING_ARGS_KEY: ai_platform_training_args
-      }
   # Tunes the hyperparameters for model training based on user-provided Python
   # function. Note that once the hyperparameters are tuned, you can drop the
   # Tuner component from pipeline and feed Trainer with tuned hyperparameters.
@@ -131,7 +131,7 @@ def create_pipeline(pipeline_name: Text,
 
   # Trains the model using a user provided trainer function.
   trainer = Trainer(
-      custom_executor_spec=executor_spec.ExecutorClassSpec(ai_platform_trainer_executor.GenericExecutor),
+      custom_executor_spec=custom_executor_spec,
       module_file=TRAIN_MODULE_FILE,
       transformed_examples=transform.outputs.transformed_examples,
       schema=import_schema.outputs.result,
@@ -139,7 +139,8 @@ def create_pipeline(pipeline_name: Text,
       hyperparameters=(tuner.outputs.best_hyperparameters if enable_tuning else None),      
       train_args={'num_steps': train_steps},
       eval_args={'num_steps': eval_steps},
-      custom_config=custom_config)
+      custom_config=custom_config
+      )
 
   # Get the latest blessed model for model validation.
   resolver = ResolverNode(
@@ -216,12 +217,12 @@ def create_pipeline(pipeline_name: Text,
 
   components=[
       examplegen, 
-      #statisticsgen,
-      #schemagen,      
-      #import_schema,
-      #examplevalidator,
-      # transform,
-      # trainer, 
+      statisticsgen,
+      schemagen,      
+      import_schema,
+      examplevalidator,
+      transform,
+      trainer, 
       # resolver, 
       # evaluator, 
       # infravalidator, 

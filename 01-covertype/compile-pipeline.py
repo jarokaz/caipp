@@ -18,6 +18,9 @@ from absl import app
 from absl import flags
 from absl import logging
 
+from tfx.components.trainer import executor as trainer_executor
+from tfx.extensions.google_cloud_ai_platform.trainer import executor as ai_platform_trainer_executor
+
 from tfx.orchestration import data_types
 from tfx.orchestration.kubeflow.v2 import kubeflow_v2_dag_runner
 
@@ -35,6 +38,15 @@ _ai_platform_training_args = {
         'imageUri': config.PIPELINE_IMAGE,
     }
 }
+
+_custom_config = {
+    ai_platform_trainer_executor.TRAINING_ARGS_KEY: _ai_platform_training_args
+}
+_custom_executor_spec=executor_spec.ExecutorClassSpec(ai_platform_trainer_executor.GenericExecutor)
+
+_custom_executor_spec=executor_spec.ExecutorClassSpec(trainer_executor.GenericExecutor)
+_custom_config = None
+
 
 # Pipeline arguments for Beam powered Components.
 _beam_pipeline_args = [
@@ -76,6 +88,8 @@ def main(argv):
         data_root_uri=_data_root_uri,
         train_steps=_train_steps,
         eval_steps=_eval_steps,
+        executor_spec=_custom_executor_spec,
+        custom_config=_custom_config,
         beam_pipeline_args=_beam_pipeline_args)
 
     # Create Kubeflow V2 runner

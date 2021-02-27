@@ -18,6 +18,10 @@ from absl import app
 from absl import flags
 from absl import logging
 
+from tfx.dsl.components.base import executor_spec
+from tfx.components.trainer import executor as trainer_executor
+from tfx.extensions.google_cloud_ai_platform.trainer import executor as ai_platform_trainer_executor
+
 from tfx.orchestration import data_types
 from tfx.orchestration.local.local_dag_runner import LocalDagRunner
 from tfx.orchestration.metadata import sqlite_metadata_connection_config
@@ -32,6 +36,24 @@ _beam_pipeline_args = [
     # during execution time.
     '--direct_num_workers=0',
 ]
+
+  # Set the values for the compile time parameters
+_ai_platform_training_args = {
+    'project': config.PROJECT_ID,
+    'region': config.GCP_REGION,
+    'serviceAccount': config.CUSTOM_SERVICE_ACCOUNT,
+    'masterConfig': {
+        'imageUri': config.PIPELINE_IMAGE,
+    }
+}
+
+_custom_config = {
+    ai_platform_trainer_executor.TRAINING_ARGS_KEY: _ai_platform_training_args
+}
+_custom_executor_spec=executor_spec.ExecutorClassSpec(ai_platform_trainer_executor.GenericExecutor)
+
+_custom_executor_spec=executor_spec.ExecutorClassSpec(trainer_executor.GenericExecutor)
+_custom_config = None
 
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('train_steps', 100, 'Training steps')
@@ -48,6 +70,8 @@ def main(argv):
         data_root_uri=FLAGS.data_root_uri,
         eval_steps=FLAGS.eval_steps,
         train_steps=FLAGS.train_steps,
+        custom_executor_spec=_custom_executor_spec,
+        custom_config=_custom_config,
         beam_pipeline_args=_beam_pipeline_args)
 
     LocalDagRunner().run(pipeline_def)

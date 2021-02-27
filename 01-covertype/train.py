@@ -312,4 +312,5 @@ def run_fn(fn_args: TrainerFnArgs):
   }
   
   model.save(fn_args.serving_model_dir, save_format='tf', signatures=signatures)
-  _copy_tensorboard_logs(LOCAL_LOG_DIR, fn_args.serving_model_dir + '/logs')
+  if fn_args.serving_model_dir.startswith('gs://'):
+      _copy_tensorboard_logs(LOCAL_LOG_DIR, fn_args.serving_model_dir + '/logs')
