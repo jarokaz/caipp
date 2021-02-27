@@ -32,31 +32,6 @@ from tfx.orchestration.metadata import sqlite_metadata_connection_config
 import config
 import pipeline 
 
-# Pipeline arguments for Beam powered Components.
-_local_beam_pipeline_args = [
-    '--direct_running_mode=multi_processing',
-    # 0 means auto-detect based on on the number of CPUs available
-    # during execution time.
-    '--direct_num_workers=0',
-]
-
-_dataflow_pipeline_args = [ 
-      '--runner=DataflowRunner',
-      '--experiments=shuffle_mode=auto',
-      '--project=' + config.PROJECT_ID,
-      '--temp_location=' + config.DATAFLOW_TMP_LOCATION,
-      '--region=' + config.GCP_REGION,
-]
-
-  # Set the values for the compile time parameters
-_ai_platform_training_args = {
-    'project': config.PROJECT_ID,
-    'region': config.GCP_REGION,
-#    'serviceAccount': config.CUSTOM_SERVICE_ACCOUNT,
-    'masterConfig': {
-        'imageUri': config.PIPELINE_IMAGE,
-    }
-}
 
 def _compile_pipeline(pipeline_def, 
                      project_id,
@@ -122,18 +97,35 @@ def main(argv):
     if FLAGS.compile_only:
         FLAGS.use_cloud_pipelines = True
 
-    # Config component executors
+    # Config executors
     if FLAGS.use_cloud_executors:
+        ai_platform_training_args = {
+            'project': FLAGS.project_id,
+            'region': FLAGS.region,
+            'masterConfig': {
+                'imageUri': config.PIPELINE_IMAGE,
+        }
         trainer_custom_config = {
-             ai_platform_trainer_executor.TRAINING_ARGS_KEY: _ai_platform_training_args}
+             ai_platform_trainer_executor.TRAINING_ARGS_KEY: ai_platform_training_args}
         trainer_custom_executor_spec=executor_spec.ExecutorClassSpec(
             ai_platform_trainer_executor.GenericExecutor)
-        beam_pipeline_args = _dataflow_pipeline_args 
+
+        beam_pipeline_args = [ 
+            '--runner=DataflowRunner',
+            '--experiments=shuffle_mode=auto',
+            '--project=' + FLAGS.project_id,
+            '--temp_location=' + config.DATAFLOW_TEMP_LOCATION,
+            '--region=' + FLAGS.region ]
     else:
         trainer_custom_config = None
         trainer_custom_executor_spec=executor_spec.ExecutorClassSpec(
             trainer_executor.GenericExecutor)
-        beam_pipeline_args = _local_beam_pipeline_args
+
+        beam_pipeline_args = = [
+            '--direct_running_mode=multi_processing',
+            # 0 means auto-detect based on on the number of CPUs available
+            # during execution time.
+            '--direct_num_workers=0' ] 
 
     # Config pipeline orchestrator
     if FLAGS.use_cloud_pipelines:
@@ -193,20 +185,20 @@ def main(argv):
 
         # Set runtime parameters
         parameter_values = {
-            train_steps = FLAGS.train_steps
-            eval_steps = FLAGS.eval_steps
-            data_root_uri = FLAGS.data_root_uri
+            'train_steps': FLAGS.train_steps,
+            'eval_steps': FLAGS.eval_steps,
+            'data_root_uri': FLAGS.data_root_uri,
         }
 
         # Submit the run
         logging.info('Submitting AI Platform Pipelines job ...')
-        def _submit_pipeline_run(
+        _submit_pipeline_run(
             project_id=FLAGS.project_id,
             region=FLAGS.region,
             api_key=FLAGS.api_key,
             pipeline_spec_path=FLAGS.pipeline_spec_path,
             pipeline_root=FLAGS.pipeline_root,
-            parameter_values=parameter_values):
+            parameter_values=parameter_values)
     else:
         logging.info('Using local dag runner')
         LocalDagRunner().run(pipeline_def)
