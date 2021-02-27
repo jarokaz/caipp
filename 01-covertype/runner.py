@@ -21,6 +21,8 @@ from absl import logging
 
 from aiplatform.pipelines import client as caippc
 
+
+
 from tfx.dsl.components.base import executor_spec
 from tfx.components.trainer import executor as trainer_executor
 from tfx.extensions.google_cloud_ai_platform.trainer import executor as ai_platform_trainer_executor
@@ -29,6 +31,8 @@ from tfx.orchestration import data_types
 from tfx.orchestration.kubeflow.v2 import kubeflow_v2_dag_runner
 from tfx.orchestration.local.local_dag_runner import LocalDagRunner
 from tfx.orchestration.metadata import sqlite_metadata_connection_config
+
+from tfx.proto import trainer_pb2
 
 import config
 import pipeline 
@@ -82,6 +86,7 @@ FLAGS = flags.FLAGS
 flags.DEFINE_integer('train_steps', 1000, 'Training steps')
 flags.DEFINE_integer('eval_steps', 500, 'Evaluation steps')
 flags.DEFINE_string('data_root_uri', 'gs://workshop-datasets/covertype/small', 'Data root')
+flags.DEFINE_string('schema_folder_uri', 'gs://techsummit-bucket/schema', 'Schema folder uri')
 flags.DEFINE_string('pipeline_spec_path', 'pipeline.json', 'Pipeline spec path')
 flags.DEFINE_string('project_id', 'jk-mlops-dev', 'Project ID')
 flags.DEFINE_string('pipeline_root', 'gs://techsummit-bucket/covertype-classifier-pipeline', 'Pipeline root')
@@ -133,22 +138,24 @@ def main(argv):
     if FLAGS.use_cloud_pipelines:
         metadata_connection_config = None
         data_root_uri = data_types.RuntimeParameter( 
-            name='data_root_uri',
+            name='data-root-uri',
             ptype=str,
             default=config.DEFAULT_DATA_ROOT)
-        eval_steps = data_types.RuntimeParameter(
-            name='eval_steps',
-            ptype=int,
-            default=FLAGS.eval_steps)
-        train_steps = data_types.RuntimeParameter(
-            name='train_steps',
-            ptype=int,
-            default=FLAGS.train_steps)
+        schema_folder_uri = data_types.RuntimeParameter(
+            name='schema-folder-uri',
+            ptype=str,
+            default=config.DEFAULT_SCHEMA_FOLDER_URI)
+        
+        # There seems to be a bug in CAIPP runner and eval_steps
+        # and train_steps cannot be passed as runtime parameters
+        eval_steps = FLAGS.eval_steps
+        train_steps = FLAGS.train_steps 
     else:
         metadata_connection_config = (
            sqlite_metadata_connection_config(config.SQL_LITE_PATH) 
         )
         data_root_uri = FLAGS.data_root_uri
+        schema_folder_uri = FLAGS.schema_folder_uri
         eval_steps = FLAGS.eval_steps
         train_steps = FLAGS.train_steps
 
@@ -156,7 +163,7 @@ def main(argv):
         pipeline_root = FLAGS.pipeline_root
     else:
         pipeline_root = config.DEFAULT_PIPELINE_ROOT
-    
+
     pipeline_name = config.PIPELINE_NAME
 
     # Create the pipeline
@@ -164,6 +171,7 @@ def main(argv):
         pipeline_name=pipeline_name,
         pipeline_root=pipeline_root,
         data_root_uri=data_root_uri,
+        schema_folder_uri=schema_folder_uri,
         eval_steps=eval_steps,
         train_steps=train_steps,
         trainer_custom_executor_spec=trainer_custom_executor_spec,
@@ -186,9 +194,8 @@ def main(argv):
 
         # Set runtime parameters
         parameter_values = {
-           # 'train_steps': FLAGS.train_steps,
-           # 'eval_steps': FLAGS.eval_steps,
-            'data_root_uri': FLAGS.data_root_uri,
+            'data-root-uri': FLAGS.data_root_uri,
+            'schema-folder-uri': FLAGS.schema_folder_uri,
         }
 
         # Submit the run

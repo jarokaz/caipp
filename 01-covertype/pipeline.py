@@ -36,6 +36,7 @@ from tfx.components import Trainer
 from tfx.components import Transform
 from tfx.components.trainer import executor as trainer_executor
 from tfx.dsl.experimental import latest_blessed_model_resolver
+from tfx.dsl.components.base import executor_spec
 from tfx.extensions.google_cloud_ai_platform.pusher import executor as ai_platform_pusher_executor
 from tfx.extensions.google_cloud_ai_platform.trainer import executor as ai_platform_trainer_executor
 from tfx.extensions.google_cloud_ai_platform.tuner.component import Tuner
@@ -55,7 +56,7 @@ from tfx.types.standard_artifacts import ModelBlessing
 from tfx.types.standard_artifacts import InfraBlessing
 from tfx.types.standard_artifacts import Schema
 
-from typing import Optional, Dict, List, Text, Union
+from typing import Optional, Dict, List, Text, Union, Any
 
 import features
 import config
@@ -69,11 +70,12 @@ def create_pipeline(
     pipeline_name: Text, 
     pipeline_root: Text, 
     data_root_uri: Union[Text, data_types.RuntimeParameter],
+    schema_folder_uri: Union[Text, data_types.RuntimeParameter], 
     train_steps: Union[int, data_types.RuntimeParameter],
     eval_steps: Union[int, data_types.RuntimeParameter],
     beam_pipeline_args: List[Text],
-    trainer_custom_executor_spec: Union[trainer_executor.GenericExecutor, ai_platform_trainer_executor.GenericExecutor] = None,
-    trainer_custom_config: Optional[dict] = None, 
+    trainer_custom_executor_spec: Optional[executor_spec.ExecutorSpec] = None,
+    trainer_custom_config: Optional[Dict[Text, Any]] = None, 
     enable_tuning: Optional[bool] = False,      
     enable_cache: Optional[bool] = False,
     metadata_connection_config: Optional[metadata_store_pb2.ConnectionConfig] = None) -> pipeline.Pipeline:
@@ -99,7 +101,8 @@ def create_pipeline(
     # Import a user-provided schema
     import_schema = ImporterNode(
         instance_name='import_user_schema',
-        source_uri=SCHEMA_FOLDER,
+        #source_uri=SCHEMA_FOLDER,
+        source_uri=schema_folder_uri,
         artifact_type=Schema)
   
     # Performs anomaly detection based on statistics and data schema.
