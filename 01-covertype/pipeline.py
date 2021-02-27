@@ -21,6 +21,7 @@ from absl import app
 from absl import flags
 
 
+from ml_metadata.proto import metadata_store_pb2
 
 from tfx.components import Evaluator
 from tfx.components import CsvExampleGen
@@ -72,10 +73,11 @@ def create_pipeline(pipeline_name: Text,
                     train_steps: data_types.RuntimeParameter,
                     eval_steps: data_types.RuntimeParameter,
                     beam_pipeline_args: List[Text],
-                    custom_executor_spec: Optional[Trainer_Executor] = None,
-                    custom_config: Optional[dict] = None, 
+                    trainer_custom_executor_spec: Optional[Trainer_Executor] = None,
+                    trainer_custom_config: Optional[dict] = None, 
                     enable_tuning: Optional[bool] = False,      
-                    enable_cache: Optional[bool] = False) -> pipeline.Pipeline:
+                    enable_cache: Optional[bool] = False,
+                    metadata_connection_config: Optional[metadata_store_pb2.ConnectionConfig] = None) -> pipeline.Pipeline:
   """Trains and deploys the Keras Covertype Classifier with TFX and AI Platform Pipelines."""
 
   # Brings data into the pipeline and splits the data into training and eval splits
@@ -131,7 +133,7 @@ def create_pipeline(pipeline_name: Text,
 
   # Trains the model using a user provided trainer function.
   trainer = Trainer(
-      custom_executor_spec=custom_executor_spec,
+      custom_executor_spec=trainer_custom_executor_spec,
       module_file=TRAIN_MODULE_FILE,
       transformed_examples=transform.outputs.transformed_examples,
       schema=import_schema.outputs.result,
@@ -139,7 +141,7 @@ def create_pipeline(pipeline_name: Text,
       hyperparameters=(tuner.outputs.best_hyperparameters if enable_tuning else None),      
       train_args={'num_steps': train_steps},
       eval_args={'num_steps': eval_steps},
-      custom_config=custom_config
+      custom_config=trainer_custom_config
       )
 
   # Get the latest blessed model for model validation.
@@ -238,8 +240,7 @@ def create_pipeline(pipeline_name: Text,
       components=components,
       enable_cache=enable_cache,
       beam_pipeline_args=beam_pipeline_args,
-      # Only needed for local runs. Ignored for CAIPP runs
-      metadata_connection_config=sqlite_metadata_connection_config(config.SQL_LITE_PATH)
+      metadata_connection_config=metadata_connection_config
   )
 
 
