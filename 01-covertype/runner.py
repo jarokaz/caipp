@@ -14,11 +14,12 @@
 # limitations under the License.
 """Local runner configuration"""
 
-import aiplatform.pipelines
 
 from absl import app
 from absl import flags
 from absl import logging
+
+from aiplatform.pipelines import client as caippc
 
 from tfx.dsl.components.base import executor_spec
 from tfx.components.trainer import executor as trainer_executor
@@ -63,7 +64,7 @@ def _submit_pipeline_run(
     "Submits a run to AI Platform Pipelines."
 
     # Create AI Platform Pipelines client
-    caipp_client = aiplatform.pipelines.client(
+    caipp_client = caippc.Client(
         project_id=project_id,
         region=region,
         api_key=api_key
@@ -73,7 +74,7 @@ def _submit_pipeline_run(
     caipp_client.create_run_from_job_spec(
         job_spec_path=pipeline_spec_path,
         pipeline_root=pipeline_root,
-        parameter_values=pipeline_params
+        parameter_values=parameter_values
     )
 
 
@@ -138,11 +139,11 @@ def main(argv):
         eval_steps = data_types.RuntimeParameter(
             name='eval_steps',
             ptype=int,
-            default=config.DEFAULT_EVAL_STEPS)
+            default=FLAGS.eval_steps)
         train_steps = data_types.RuntimeParameter(
             name='train_steps',
             ptype=int,
-            default=config.DEFAULT_TRAIN_STEPS)  
+            default=FLAGS.train_steps)
     else:
         metadata_connection_config = (
            sqlite_metadata_connection_config(config.SQL_LITE_PATH) 
@@ -185,8 +186,8 @@ def main(argv):
 
         # Set runtime parameters
         parameter_values = {
-            'train_steps': FLAGS.train_steps,
-            'eval_steps': FLAGS.eval_steps,
+           # 'train_steps': FLAGS.train_steps,
+           # 'eval_steps': FLAGS.eval_steps,
             'data_root_uri': FLAGS.data_root_uri,
         }
 
