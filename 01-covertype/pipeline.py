@@ -56,8 +56,6 @@ from tfx.types.standard_artifacts import InfraBlessing
 from tfx.types.standard_artifacts import Schema
 
 from typing import Optional, Dict, List, Text, Union
-Trainer_Executor = Union[trainer_executor.GenericExecutor, 
-                         ai_platform_trainer_executor.GenericExecutor]
 
 import features
 import config
@@ -69,11 +67,11 @@ TRAIN_MODULE_FILE='train.py'
 
 def create_pipeline(pipeline_name: Text, 
                     pipeline_root: Text, 
-                    data_root_uri: data_types.RuntimeParameter,
-                    train_steps: data_types.RuntimeParameter,
-                    eval_steps: data_types.RuntimeParameter,
+                    data_root_uri: Union[Text, data_types.RuntimeParameter],
+                    train_steps: Union[int, data_types.RuntimeParameter],
+                    eval_steps: Union[int, data_types.RuntimeParameter],
                     beam_pipeline_args: List[Text],
-                    trainer_custom_executor_spec: Optional[Trainer_Executor] = None,
+                    trainer_custom_executor_spec: Union[trainer_executor.GenericExecutor, ai_platform_trainer_executor.GenericExecutor] = None,
                     trainer_custom_config: Optional[dict] = None, 
                     enable_tuning: Optional[bool] = False,      
                     enable_cache: Optional[bool] = False,

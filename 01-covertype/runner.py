@@ -104,6 +104,7 @@ def main(argv):
             'region': FLAGS.region,
             'masterConfig': {
                 'imageUri': config.PIPELINE_IMAGE,
+            }
         }
         trainer_custom_config = {
              ai_platform_trainer_executor.TRAINING_ARGS_KEY: ai_platform_training_args}
@@ -121,7 +122,7 @@ def main(argv):
         trainer_custom_executor_spec=executor_spec.ExecutorClassSpec(
             trainer_executor.GenericExecutor)
 
-        beam_pipeline_args = = [
+        beam_pipeline_args = [
             '--direct_running_mode=multi_processing',
             # 0 means auto-detect based on on the number of CPUs available
             # during execution time.
