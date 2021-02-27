@@ -78,8 +78,8 @@ def _submit_pipeline_run(
 
 
 FLAGS = flags.FLAGS
-flags.DEFINE_integer('train_steps', 100, 'Training steps')
-flags.DEFINE_integer('eval_steps', 100, 'Evaluation steps')
+flags.DEFINE_integer('train_steps', 1000, 'Training steps')
+flags.DEFINE_integer('eval_steps', 500, 'Evaluation steps')
 flags.DEFINE_string('data_root_uri', 'gs://workshop-datasets/covertype/small', 'Data root')
 flags.DEFINE_string('pipeline_spec_path', 'pipeline.json', 'Pipeline spec path')
 flags.DEFINE_string('project_id', 'jk-mlops-dev', 'Project ID')
@@ -131,34 +131,33 @@ def main(argv):
     # Config pipeline orchestrator
     if FLAGS.use_cloud_pipelines:
         metadata_connection_config = None
-        pipeline_name = config.PIPELINE_NAME
-        pipeline_root = FLAGS.pipeline_root
-
         data_root_uri = data_types.RuntimeParameter( 
             name='data_root_uri',
             ptype=str,
             default=config.DEFAULT_DATA_ROOT)
-        
         eval_steps = data_types.RuntimeParameter(
             name='eval_steps',
             ptype=int,
             default=config.DEFAULT_EVAL_STEPS)
-
         train_steps = data_types.RuntimeParameter(
             name='train_steps',
             ptype=int,
             default=config.DEFAULT_TRAIN_STEPS)  
-
     else:
         metadata_connection_config = (
            sqlite_metadata_connection_config(config.SQL_LITE_PATH) 
         )
-        pipeline_name = config.PIPELINE_NAME
-        pipeline_root = config.DEFAULT_PIPELINE_ROOT
         data_root_uri = FLAGS.data_root_uri
         eval_steps = FLAGS.eval_steps
         train_steps = FLAGS.train_steps
+
+    if FLAGS.use_cloud_executors or FLAGS.use_cloud_pipelines:
+        pipeline_root = FLAGS.pipeline_root
+    else:
+        pipeline_root = config.DEFAULT_PIPELINE_ROOT
     
+    pipeline_name = config.PIPELINE_NAME
+
     # Create the pipeline
     pipeline_def = pipeline.create_pipeline(
         pipeline_name=pipeline_name,
