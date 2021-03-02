@@ -122,7 +122,7 @@ def main(argv):
             '--experiments=shuffle_mode=auto',
             '--project=' + FLAGS.project_id,
             '--temp_location=' + config.DATAFLOW_TEMP_LOCATION,
-            '--disk_size_gb=50',
+            '--disk_size_gb=100',
             '--machine_type=e2-standard-8',
             '--region=' + FLAGS.region ]
     else:

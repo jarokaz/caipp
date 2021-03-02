@@ -27,7 +27,6 @@ from tfx.components import Evaluator
 from tfx.components import CsvExampleGen
 from tfx.components import ExampleValidator
 from tfx.components import ImporterNode
-from tfx.components import InfraValidator
 from tfx.components import Pusher
 from tfx.components import ResolverNode
 from tfx.components import SchemaGen
@@ -185,32 +184,6 @@ def create_pipeline(
         eval_config=eval_config
     )
   
-    # Validate model can be loaded and queried in sand-boxed environment 
-    # mirroring production.
-    serving_config = infra_validator_pb2.ServingSpec(
-        tensorflow_serving=infra_validator_pb2.TensorFlowServing(
-            tags=['latest']),
-        kubernetes=infra_validator_pb2.KubernetesConfig(),
-    )
-    
-    validation_config = infra_validator_pb2.ValidationSpec(
-        max_loading_time_seconds=60,
-        num_tries=3,
-    )
-    
-    request_config = infra_validator_pb2.RequestSpec(
-        tensorflow_serving=infra_validator_pb2.TensorFlowServingRequestSpec(),
-        num_examples=3,
-    )
-      
-    infravalidator = InfraValidator(
-        model=trainer.outputs.model,
-        examples=examplegen.outputs.examples,
-        serving_spec=serving_config,
-        validation_spec=validation_config,
-        request_spec=request_config,
-    )
-    
     # Checks whether the model passed the validation steps and pushes the model
     # to CAIP Prediction if checks are passed.
     # pusher = Pusher(
@@ -228,9 +201,8 @@ def create_pipeline(
         examplevalidator,
         transform,
         trainer, 
-        # resolver, 
-        # evaluator, 
-        # infravalidator, 
+        resolver, 
+        evaluator, 
         # pusher
     ]
   
