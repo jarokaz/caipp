@@ -94,7 +94,7 @@ flags.DEFINE_string('api_key', 'None', 'API Key')
 flags.DEFINE_bool('compile_only', False, 'Compile the pipeline but do not submit a run')
 flags.DEFINE_bool('use_cloud_pipelines', False, 'Use AI Platform Pipelines')
 flags.DEFINE_bool('use_cloud_executors', False, 'Use AI Platform and Dataflow for executors')
-
+flags.DEFINE_string('sql_lite_path', '/home/jupyter/sqllite/metadata.sqlite', 'Path for SQL Lite')
 flags.DEFINE_string('pipeline_root', None, 'Pipeline root')
 flags.mark_flag_as_required('pipeline_root')
 
@@ -157,7 +157,7 @@ def main(argv):
         train_steps = FLAGS.train_steps 
     else:
         metadata_connection_config = (
-           sqlite_metadata_connection_config(config.SQL_LITE_PATH) 
+           sqlite_metadata_connection_config(FLAGS.sql_lite_path) 
         )
         data_root_uri = FLAGS.data_root_uri
         schema_folder_uri = FLAGS.schema_folder_uri

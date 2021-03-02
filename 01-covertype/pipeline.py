@@ -60,12 +60,18 @@ from typing import Optional, Dict, List, Text, Union, Any
 import features
 import config
 
+#from caip_pusher import upload_model
+
 SCHEMA_FOLDER='schema'
 TRANSFORM_MODULE_FILE='preprocess.py'
 TRAIN_MODULE_FILE='train.py'
 
 
 def create_pipeline(
+   # project_id: Text,
+   # model_display_name: Text,
+   # region: Text,
+   # serving_container: Text,
     pipeline_name: Text, 
     pipeline_root: Text, 
     data_root_uri: Union[Text, data_types.RuntimeParameter],
@@ -192,6 +198,15 @@ def create_pipeline(
     #    model_blessing=evaluator.outputs.blessing,
     #    infra_blessing=infravalidator.outputs.blessing,
     #    custom_config={ai_platform_pusher_executor.SERVING_ARGS_KEY: ai_platform_serving_args})
+
+
+    #model_uploader=upload_model(
+    #    project_id=project_id,
+    #    display_name=model_display_name,
+    #    serving_container=serving_container,
+    #    region=region,
+    #    model=trainer.outputs.model
+    #)
   
     components=[
         examplegen, 

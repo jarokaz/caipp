@@ -22,39 +22,42 @@ import tfx
 import tensorflow as tf
 
 from tfx.dsl.component.experimental.decorators import component
-from tfx.dsl.component.experimental.annotations import InputArtifact, OutputArtifact, Parameter
+from tfx.dsl.component.experimental.annotations import InputArtifact, OutputArtifact, Parameter, OutputDict
 
-from tfx.types.experimental.simple_artifacts import Dataset as BQDataset
+from tfx.types.experimental.simple_artifacts import Model
 from tfx.types.standard_artifacts import Model as BQModel
 
-
 @component
-def train_item_matching_model(
+def upload_model(
     project_id: Parameter[str],
-    bq_dataset: Parameter[str],
-    dimensions: Parameter[int],
-    item_cooc: InputArtifact[BQDataset],
-    bq_model: OutputArtifact[BQModel]):
-    
-    item_cooc_table = item_cooc.get_string_custom_property('table_name')
-    stored_proc = f'{bq_dataset}.sp_TrainItemMatchingModel'
-    query = f'''
-        DECLARE dimensions INT64 DEFAULT {dimensions};
-        CALL {stored_proc}(dimensions);
-    '''
-    model_name = 'item_matching_model'
-  
-    logging.info(f'Using item co-occurrence table: item_cooc_table')
-    logging.info(f'Starting training of the model...')
-    
-    client = bigquery.Client(project=project_id)
-    query_job = client.query(query)
-    query_job.result()
-  
-    logging.info(f'Model training completed. Output in {bq_dataset}.{model_name}.')
-  
-    # Write the location of the model to metadata. 
-    bq_model.set_string_custom_property('model_name',
-                                         f'{project_id}:{bq_dataset}.{model_name}')
+    display_name: Parameter[str],
+    serving_container: Parameter[str],
+    region: Parameter[str],
+    model: InputArtifact[Model]) -> OutputDict(model_name=str):
+    """Uploads model artifacts to AI Platform Models."""
 
+    api_endpoint = f'{region}-aiplatform.googleapis.com'
+    parent = f'projects/{project_id}/locations/{region}'
 
+    client_options = {'api_endpoint': api_endpoint}
+    client = aiplatform.gapic.ModelServiceClient(client_options=client_options)
+
+    model = {
+        'display_name': display_name,
+        'metadata_schema_uri': "",
+        'artifact_uri': model,
+        'container_spec': {
+            'image_uri': serving_container,
+            'command': [],
+            'args': []
+        }
+    }
+
+    print(model)
+
+    response = client.upload_model(parent=parent, model=model)
+    logging.info('Uploading model {}. Operation ID: {}'.format(model, response.operation.name))
+    upload_model_response = response.result()
+    logging.info('Upload completed.')
+    
+    return {'model_name': upload_model_response}
