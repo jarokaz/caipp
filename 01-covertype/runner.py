@@ -122,6 +122,8 @@ def main(argv):
             '--experiments=shuffle_mode=auto',
             '--project=' + FLAGS.project_id,
             '--temp_location=' + config.DATAFLOW_TEMP_LOCATION,
+            '--disk_size_gb=50',
+            '--machine_type=e2-standard-8',
             '--region=' + FLAGS.region ]
     else:
         trainer_custom_config = None

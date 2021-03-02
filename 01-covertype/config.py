@@ -33,6 +33,6 @@ DEFAULT_TRAIN_STEPS=os.getenv("DEFAULT_TRAIN_STEPS", 100)
 DEFAULT_EVAL_STEPS=os.getenv("DEFAULT_EVAL_STEPS", 50)
 DEFAULT_DATA_ROOT=os.getenv("DEFAULT_DATA_ROOT", "gs://workshop-datasets/covertype/small")
 DEFAULT_PIPELINE_ROOT=os.getenv("DEFAULT_PIPELINE_ROOT", "/tmp/local_run_pipeline_root")
-DATAFLOW_TEMP_LOCATION=os.getenv("DATAFLOW_TEMP_LOCATION", "gs://techsummit-bucket/dataflow_tmp")
+DATAFLOW_TEMP_LOCATION=os.getenv("DATAFLOW_TEMP_LOCATION", "gs://techsummit-bucket/tmp")
 DEFAULT_SCHEMA_FOLDER_URI=os.getenv("DEFAULT_SCHEMA_FOLDER_URI", "gs://techsummit-bucket/schema")
     
