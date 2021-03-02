@@ -89,12 +89,15 @@ flags.DEFINE_string('data_root_uri', 'gs://workshop-datasets/covertype/small', '
 flags.DEFINE_string('schema_folder_uri', 'gs://jk-techsummit-bucket/schema', 'Schema folder uri')
 flags.DEFINE_string('pipeline_spec_path', 'pipeline.json', 'Pipeline spec path')
 flags.DEFINE_string('project_id', 'jk-mlops-dev', 'Project ID')
-flags.DEFINE_string('pipeline_root', 'gs://jk-techsummit-bucket/covertype-classifier-pipeline', 'Pipeline root')
 flags.DEFINE_string('region', 'us-central1', 'Region')
 flags.DEFINE_string('api_key', 'None', 'API Key')
 flags.DEFINE_bool('compile_only', False, 'Compile the pipeline but do not submit a run')
 flags.DEFINE_bool('use_cloud_pipelines', False, 'Use AI Platform Pipelines')
 flags.DEFINE_bool('use_cloud_executors', False, 'Use AI Platform and Dataflow for executors')
+
+flags.DEFINE_string('pipeline_root', None, 'Pipeline root')
+flags.mark_flag_as_required('pipeline_root')
+
 
 def main(argv):
     del argv
