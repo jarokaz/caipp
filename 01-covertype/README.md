@@ -29,3 +29,12 @@ export PROJECT_ID=jk-mlops-dev
 export IMAGE_NAME=gcr.io/$PROJECT_ID/covertype-tfx
 gcloud builds submit --tag $IMAGE_NAME .
 ```
+
+### Creating a regional bucket
+
+```
+BUCKET_NAME=gs://jk-techsummit-bucket
+REGION=us-central1
+
+gsutil mb -l $REGION $BUCKET_NAME
+```

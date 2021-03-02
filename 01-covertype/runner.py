@@ -86,10 +86,10 @@ FLAGS = flags.FLAGS
 flags.DEFINE_integer('train_steps', 1000, 'Training steps')
 flags.DEFINE_integer('eval_steps', 500, 'Evaluation steps')
 flags.DEFINE_string('data_root_uri', 'gs://workshop-datasets/covertype/small', 'Data root')
-flags.DEFINE_string('schema_folder_uri', 'gs://techsummit-bucket/schema', 'Schema folder uri')
+flags.DEFINE_string('schema_folder_uri', 'gs://jk-techsummit-bucket/schema', 'Schema folder uri')
 flags.DEFINE_string('pipeline_spec_path', 'pipeline.json', 'Pipeline spec path')
 flags.DEFINE_string('project_id', 'jk-mlops-dev', 'Project ID')
-flags.DEFINE_string('pipeline_root', 'gs://techsummit-bucket/covertype-classifier-pipeline', 'Pipeline root')
+flags.DEFINE_string('pipeline_root', 'gs://jk-techsummit-bucket/covertype-classifier-pipeline', 'Pipeline root')
 flags.DEFINE_string('region', 'us-central1', 'Region')
 flags.DEFINE_string('api_key', 'None', 'API Key')
 flags.DEFINE_bool('compile_only', False, 'Compile the pipeline but do not submit a run')
@@ -161,11 +161,7 @@ def main(argv):
         eval_steps = FLAGS.eval_steps
         train_steps = FLAGS.train_steps
 
-    if FLAGS.use_cloud_executors or FLAGS.use_cloud_pipelines:
-        pipeline_root = FLAGS.pipeline_root
-    else:
-        pipeline_root = config.DEFAULT_PIPELINE_ROOT
-
+    pipeline_root = FLAGS.pipeline_root
     pipeline_name = config.PIPELINE_NAME
 
     # Create the pipeline

@@ -40,3 +40,10 @@ gsutil cp gs://cloud-aiplatform-pipelines/releases/20210209/aiplatform_pipelines
 pip install --user aiplatform_pipelines_client-0.1.0.caip20210209-py3-none-any.whl --upgrade
 cd
 ```
+
+
+### Install AI Platform (Unified) SDK
+
+```
+pip install -U google-cloud-aiplatform --user
+```
