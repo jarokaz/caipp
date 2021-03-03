@@ -45,33 +45,25 @@ from tfx.orchestration.metadata import sqlite_metadata_connection_config
 from tfx.orchestration.kubeflow.proto import kubeflow_pb2
 from tfx.proto import example_gen_pb2
 from tfx.proto import evaluator_pb2
-from tfx.proto import infra_validator_pb2
 from tfx.proto import pusher_pb2
 from tfx.proto import trainer_pb2
 from tfx.proto import tuner_pb2
 from tfx.types import Channel
 from tfx.types.standard_artifacts import Model
 from tfx.types.standard_artifacts import ModelBlessing
-from tfx.types.standard_artifacts import InfraBlessing
 from tfx.types.standard_artifacts import Schema
 
 from typing import Optional, Dict, List, Text, Union, Any
 
 import features
-import caip_pusher 
 
-SCHEMA_FOLDER='schema'
 TRANSFORM_MODULE_FILE='preprocess.py'
 TRAIN_MODULE_FILE='train.py'
 
-
 def create_pipeline(
-    project_id: Text,
-    model_display_name: Text,
-    region: Text,
-    serving_container: Text,
     pipeline_name: Text, 
-    pipeline_root: Text, 
+    pipeline_root: Text,
+    serving_model_uri: Text, 
     data_root_uri: Union[Text, data_types.RuntimeParameter],
     schema_folder_uri: Union[Text, data_types.RuntimeParameter], 
     train_steps: Union[int, data_types.RuntimeParameter],
@@ -188,22 +180,12 @@ def create_pipeline(
         eval_config=eval_config
     )
   
-    # Checks whether the model passed the validation steps and pushes the model
-    # to CAIP Prediction if checks are passed.
-    # pusher = Pusher(
-    #    custom_executor_spec=executor_spec.ExecutorClassSpec(ai_platform_pusher_executor.Executor),      
-    #    model=trainer.outputs.model,
-    #    model_blessing=evaluator.outputs.blessing,
-    #    infra_blessing=infravalidator.outputs.blessing,
-    #    custom_config={ai_platform_pusher_executor.SERVING_ARGS_KEY: ai_platform_serving_args})
-
-
-    model_uploader=caip_pusher.upload_model(
-        project_id=project_id,
-        display_name=model_display_name,
-        serving_container=serving_container,
-        region=region,
-        model=trainer.outputs.model)
+    pusher = Pusher(
+        model=trainer.outputs['model'],
+        model_blessing=evaluator.outputs['blessing'],
+        push_destination=pusher_pb2.PushDestination(
+            filesystem=pusher_pb2.PushDestination.Filesystem(
+                base_directory=serving_model_uri)))
   
     components=[
         examplegen, 
@@ -215,7 +197,7 @@ def create_pipeline(
         trainer, 
         resolver, 
         evaluator, 
-        # model_uploader
+        #pusher 
     ]
   
     if enable_tuning:

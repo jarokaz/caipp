@@ -38,10 +38,11 @@ def upload_model(
     client_options = {'api_endpoint': api_endpoint}
     client = aiplatform.gapic.ModelServiceClient(client_options=client_options)
 
-    model = {
+    artifact_uri = '{}/serving_model_dir'.format(model.uri)
+    model_spec = {
         'display_name': display_name,
         'metadata_schema_uri': "",
-        'artifact_uri': model.uri,
+        'artifact_uri': artifact_uri,
         'container_spec': {
             'image_uri': serving_container,
             'command': [],
@@ -49,7 +50,7 @@ def upload_model(
         }
     }
 
-    response = client.upload_model(parent=parent, model=model)
+    response = client.upload_model(parent=parent, model=model_spec)
     logging.info('Uploading model {}. Operation ID: {}'.format(model, response.operation.name))
     upload_model_response = response.result()
     logging.info('Upload completed.')

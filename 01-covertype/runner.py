@@ -21,8 +21,6 @@ from absl import logging
 
 from aiplatform.pipelines import client as caippc
 
-
-
 from tfx.dsl.components.base import executor_spec
 from tfx.components.trainer import executor as trainer_executor
 from tfx.extensions.google_cloud_ai_platform.trainer import executor as ai_platform_trainer_executor
@@ -103,11 +101,12 @@ flags.DEFINE_string('region', 'us-central1', 'Region')
 flags.DEFINE_integer('dataflow_disk_size', 50, 'Dataflow worker disk size')
 flags.DEFINE_string('dataflow_machine_type', 'en-standard-8', 'Dataflow machine type')
 flags.DEFINE_string('dataflow_temp_location', 'gs://jk-techsummit-bucket/dataflow-temp', 'Dataflow temp location')
-flags.DEFINE_string('serving_container', 'us-docker.pkg.dev/cloud-aiplatform/prediction/tf2-cpu.2-3:latest', 'Serving container')
+flags.DEFINE_bool('enable_cache', False, 'Enable caching')
 
 # Runtime parameters
 flags.DEFINE_string('data_root_uri', 'gs://workshop-datasets/covertype/small', 'Data root')
 flags.DEFINE_string('schema_folder_uri', 'gs://jk-techsummit-bucket/schema', 'Schema folder uri')
+flags.DEFINE_string('serving_model_uri', 'gs://jk-techsummit-bucket/models/covertype', 'Serving model dir')
 flags.DEFINE_string('pipeline_root', None, 'Pipeline root')
 flags.mark_flag_as_required('pipeline_root')
 
@@ -172,12 +171,9 @@ def main(argv):
 
     # Create the pipeline
     pipeline_def = pipeline.create_pipeline(
-        project_id=FLAGS.project_id,
-        model_display_name=FLAGS.model_name,
-        region=FLAGS.region,
-        serving_container=FLAGS.serving_container,
         pipeline_name=FLAGS.pipeline_name,
         pipeline_root=FLAGS.pipeline_root,
+        serving_model_uri=FLAGS.serving_model_uri,
         data_root_uri=data_root_uri,
         schema_folder_uri=schema_folder_uri,
         eval_steps=FLAGS.eval_steps,
@@ -185,6 +181,7 @@ def main(argv):
         trainer_custom_executor_spec=trainer_custom_executor_spec,
         trainer_custom_config=trainer_custom_config,
         beam_pipeline_args=beam_pipeline_args,
+        enable_cache=FLAGS.enable_cache,
         metadata_connection_config=metadata_connection_config)
 
     # Run or compile the pipeline
