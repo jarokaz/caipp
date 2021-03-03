@@ -16,16 +16,11 @@
 
 import logging
 
-from google.cloud import bigquery
-
-import tfx
-import tensorflow as tf
+from google.cloud import aiplatform
 
 from tfx.dsl.component.experimental.decorators import component
 from tfx.dsl.component.experimental.annotations import InputArtifact, OutputArtifact, Parameter, OutputDict
-
-from tfx.types.experimental.simple_artifacts import Model
-from tfx.types.standard_artifacts import Model as BQModel
+from tfx.types.standard_artifacts import Model
 
 @component
 def upload_model(
@@ -52,8 +47,6 @@ def upload_model(
             'args': []
         }
     }
-
-    print(model)
 
     response = client.upload_model(parent=parent, model=model)
     logging.info('Uploading model {}. Operation ID: {}'.format(model, response.operation.name))

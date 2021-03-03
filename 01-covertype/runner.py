@@ -34,7 +34,6 @@ from tfx.orchestration.metadata import sqlite_metadata_connection_config
 
 from tfx.proto import trainer_pb2
 
-import config
 import pipeline 
 
 
@@ -83,18 +82,32 @@ def _submit_pipeline_run(
 
 
 FLAGS = flags.FLAGS
-flags.DEFINE_integer('train_steps', 1000, 'Training steps')
-flags.DEFINE_integer('eval_steps', 500, 'Evaluation steps')
-flags.DEFINE_string('data_root_uri', 'gs://workshop-datasets/covertype/small', 'Data root')
-flags.DEFINE_string('schema_folder_uri', 'gs://jk-techsummit-bucket/schema', 'Schema folder uri')
+
+# Runner settings
 flags.DEFINE_string('pipeline_spec_path', 'pipeline.json', 'Pipeline spec path')
-flags.DEFINE_string('project_id', 'jk-mlops-dev', 'Project ID')
-flags.DEFINE_string('region', 'us-central1', 'Region')
-flags.DEFINE_string('api_key', 'None', 'API Key')
 flags.DEFINE_bool('compile_only', False, 'Compile the pipeline but do not submit a run')
 flags.DEFINE_bool('use_cloud_pipelines', False, 'Use AI Platform Pipelines')
 flags.DEFINE_bool('use_cloud_executors', False, 'Use AI Platform and Dataflow for executors')
+flags.DEFINE_string('api_key', 'None', 'API Key')
+flags.mark_flag_as_required('api_key')
 flags.DEFINE_string('sql_lite_path', '/home/jupyter/sqllite/metadata.sqlite', 'Path for SQL Lite')
+
+# Pipeline compile time settings
+flags.DEFINE_string('pipeline_name', 'covertype-training', 'Pipeline name')
+flags.DEFINE_string('pipeline_image', 'gcr.io/jk-mlops-dev/covertype-tfx', 'Pipeline container image')
+flags.DEFINE_string('model_name', 'convertype_classifier', 'Model display name')
+flags.DEFINE_integer('train_steps', 1000, 'Training steps')
+flags.DEFINE_integer('eval_steps', 500, 'Evaluation steps')
+flags.DEFINE_string('project_id', 'jk-mlops-dev', 'Project ID')
+flags.DEFINE_string('region', 'us-central1', 'Region')
+flags.DEFINE_integer('dataflow_disk_size', 50, 'Dataflow worker disk size')
+flags.DEFINE_string('dataflow_machine_type', 'en-standard-8', 'Dataflow machine type')
+flags.DEFINE_string('dataflow_temp_location', 'gs://jk-techsummit-bucket/dataflow-temp', 'Dataflow temp location')
+flags.DEFINE_string('serving_container', 'us-docker.pkg.dev/cloud-aiplatform/prediction/tf2-cpu.2-3:latest', 'Serving container')
+
+# Runtime parameters
+flags.DEFINE_string('data_root_uri', 'gs://workshop-datasets/covertype/small', 'Data root')
+flags.DEFINE_string('schema_folder_uri', 'gs://jk-techsummit-bucket/schema', 'Schema folder uri')
 flags.DEFINE_string('pipeline_root', None, 'Pipeline root')
 flags.mark_flag_as_required('pipeline_root')
 
@@ -112,7 +125,7 @@ def main(argv):
             'project': FLAGS.project_id,
             'region': FLAGS.region,
             'masterConfig': {
-                'imageUri': config.PIPELINE_IMAGE,
+                'imageUri': FLAGS.pipeline_image,
             }
         }
         trainer_custom_config = {
@@ -124,7 +137,7 @@ def main(argv):
             '--runner=DataflowRunner',
             '--experiments=shuffle_mode=auto',
             '--project=' + FLAGS.project_id,
-            '--temp_location=' + config.DATAFLOW_TEMP_LOCATION,
+            '--temp_location=' + FLAGS.dataflow_temp_location,
             '--disk_size_gb=100',
             '--machine_type=e2-standard-8',
             '--region=' + FLAGS.region ]
@@ -145,36 +158,30 @@ def main(argv):
         data_root_uri = data_types.RuntimeParameter( 
             name='data-root-uri',
             ptype=str,
-            default=config.DEFAULT_DATA_ROOT)
+            default=FLAGS.pipeline_root)
         schema_folder_uri = data_types.RuntimeParameter(
             name='schema-folder-uri',
             ptype=str,
-            default=config.DEFAULT_SCHEMA_FOLDER_URI)
-        
-        # There seems to be a bug in CAIPP runner and eval_steps
-        # and train_steps cannot be passed as runtime parameters
-        eval_steps = FLAGS.eval_steps
-        train_steps = FLAGS.train_steps 
+            default=FLAGS.schema_folder_uri)
     else:
         metadata_connection_config = (
            sqlite_metadata_connection_config(FLAGS.sql_lite_path) 
         )
         data_root_uri = FLAGS.data_root_uri
         schema_folder_uri = FLAGS.schema_folder_uri
-        eval_steps = FLAGS.eval_steps
-        train_steps = FLAGS.train_steps
-
-    pipeline_root = FLAGS.pipeline_root
-    pipeline_name = config.PIPELINE_NAME
 
     # Create the pipeline
     pipeline_def = pipeline.create_pipeline(
-        pipeline_name=pipeline_name,
-        pipeline_root=pipeline_root,
-        data_root_uri=data_root_uri,
+        project_id=FLAGS.project_id,
+        model_display_name=FLAGS.model_name,
+        region=FLAGS.region,
+        serving_container=FLAGS.serving_container,
+        pipeline_name=FLAGS.pipeline_name,
+        pipeline_root=FLAGS.pipeline_root,
+        data_root_uri=FLAGS.data_root_uri,
         schema_folder_uri=schema_folder_uri,
-        eval_steps=eval_steps,
-        train_steps=train_steps,
+        eval_steps=FLAGS.eval_steps,
+        train_steps=FLAGS.train_steps,
         trainer_custom_executor_spec=trainer_custom_executor_spec,
         trainer_custom_config=trainer_custom_config,
         beam_pipeline_args=beam_pipeline_args,
@@ -186,8 +193,8 @@ def main(argv):
         _compile_pipeline(
             pipeline_def=pipeline_def,
             project_id=FLAGS.project_id,
-            pipeline_name=pipeline_name,
-            pipeline_image=config.PIPELINE_IMAGE,
+            pipeline_name=FLAGS.pipeline_name,
+            pipeline_image=FLAGS.pipeline_image,
             pipeline_spec_path=FLAGS.pipeline_spec_path
         )
         if FLAGS.compile_only:

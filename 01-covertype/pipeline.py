@@ -58,9 +58,7 @@ from tfx.types.standard_artifacts import Schema
 from typing import Optional, Dict, List, Text, Union, Any
 
 import features
-import config
-
-#from caip_pusher import upload_model
+import caip_pusher 
 
 SCHEMA_FOLDER='schema'
 TRANSFORM_MODULE_FILE='preprocess.py'
@@ -68,10 +66,10 @@ TRAIN_MODULE_FILE='train.py'
 
 
 def create_pipeline(
-   # project_id: Text,
-   # model_display_name: Text,
-   # region: Text,
-   # serving_container: Text,
+    project_id: Text,
+    model_display_name: Text,
+    region: Text,
+    serving_container: Text,
     pipeline_name: Text, 
     pipeline_root: Text, 
     data_root_uri: Union[Text, data_types.RuntimeParameter],
