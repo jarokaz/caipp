@@ -99,7 +99,7 @@ flags.DEFINE_integer('eval_steps', 500, 'Evaluation steps')
 flags.DEFINE_string('project_id', 'jk-mlops-dev', 'Project ID')
 flags.DEFINE_string('region', 'us-central1', 'Region')
 flags.DEFINE_integer('dataflow_disk_size', 50, 'Dataflow worker disk size')
-flags.DEFINE_string('dataflow_machine_type', 'en-standard-8', 'Dataflow machine type')
+flags.DEFINE_string('dataflow_machine_type', 'e2-standard-8', 'Dataflow machine type')
 flags.DEFINE_string('dataflow_temp_location', 'gs://jk-techsummit-bucket/dataflow-temp', 'Dataflow temp location')
 flags.DEFINE_string('serving_model_uri', 'gs://jk-techsummit-bucket/models/covertype', 'Serving model dir')
 
