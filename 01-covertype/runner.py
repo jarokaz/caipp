@@ -101,12 +101,11 @@ flags.DEFINE_string('region', 'us-central1', 'Region')
 flags.DEFINE_integer('dataflow_disk_size', 50, 'Dataflow worker disk size')
 flags.DEFINE_string('dataflow_machine_type', 'en-standard-8', 'Dataflow machine type')
 flags.DEFINE_string('dataflow_temp_location', 'gs://jk-techsummit-bucket/dataflow-temp', 'Dataflow temp location')
-flags.DEFINE_bool('enable_cache', False, 'Enable caching')
+flags.DEFINE_string('serving_model_uri', 'gs://jk-techsummit-bucket/models/covertype', 'Serving model dir')
 
 # Runtime parameters
 flags.DEFINE_string('data_root_uri', 'gs://workshop-datasets/covertype/small', 'Data root')
 flags.DEFINE_string('schema_folder_uri', 'gs://jk-techsummit-bucket/schema', 'Schema folder uri')
-flags.DEFINE_string('serving_model_uri', 'gs://jk-techsummit-bucket/models/covertype', 'Serving model dir')
 flags.DEFINE_string('pipeline_root', None, 'Pipeline root')
 flags.mark_flag_as_required('pipeline_root')
 
@@ -137,8 +136,8 @@ def main(argv):
             '--experiments=shuffle_mode=auto',
             '--project=' + FLAGS.project_id,
             '--temp_location=' + FLAGS.dataflow_temp_location,
-            '--disk_size_gb=100',
-            '--machine_type=e2-standard-8',
+            '--disk_size_gb=' + str(FLAGS.dataflow_disk_size),
+            '--machine_type=' + FLAGS.dataflow_machine_type,
             '--region=' + FLAGS.region ]
     else:
         trainer_custom_config = None
@@ -181,7 +180,6 @@ def main(argv):
         trainer_custom_executor_spec=trainer_custom_executor_spec,
         trainer_custom_config=trainer_custom_config,
         beam_pipeline_args=beam_pipeline_args,
-        enable_cache=FLAGS.enable_cache,
         metadata_connection_config=metadata_connection_config)
 
     # Run or compile the pipeline

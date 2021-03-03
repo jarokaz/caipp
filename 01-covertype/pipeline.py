@@ -197,7 +197,7 @@ def create_pipeline(
         trainer, 
         resolver, 
         evaluator, 
-        #pusher 
+        pusher 
     ]
   
     if enable_tuning:
