@@ -198,13 +198,12 @@ def create_pipeline(
     #    custom_config={ai_platform_pusher_executor.SERVING_ARGS_KEY: ai_platform_serving_args})
 
 
-    #model_uploader=upload_model(
-    #    project_id=project_id,
-    #    display_name=model_display_name,
-    #    serving_container=serving_container,
-    #    region=region,
-    #    model=trainer.outputs.model
-    #)
+    model_uploader=caip_pusher.upload_model(
+        project_id=project_id,
+        display_name=model_display_name,
+        serving_container=serving_container,
+        region=region,
+        model=trainer.outputs.model)
   
     components=[
         examplegen, 
@@ -216,7 +215,7 @@ def create_pipeline(
         trainer, 
         resolver, 
         evaluator, 
-        # pusher
+        # model_uploader
     ]
   
     if enable_tuning:

@@ -158,7 +158,7 @@ def main(argv):
         data_root_uri = data_types.RuntimeParameter( 
             name='data-root-uri',
             ptype=str,
-            default=FLAGS.pipeline_root)
+            default=FLAGS.data_root_uri)
         schema_folder_uri = data_types.RuntimeParameter(
             name='schema-folder-uri',
             ptype=str,
@@ -178,7 +178,7 @@ def main(argv):
         serving_container=FLAGS.serving_container,
         pipeline_name=FLAGS.pipeline_name,
         pipeline_root=FLAGS.pipeline_root,
-        data_root_uri=FLAGS.data_root_uri,
+        data_root_uri=data_root_uri,
         schema_folder_uri=schema_folder_uri,
         eval_steps=FLAGS.eval_steps,
         train_steps=FLAGS.train_steps,

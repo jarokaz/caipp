@@ -20,6 +20,7 @@ from google.cloud import aiplatform
 
 from tfx.dsl.component.experimental.decorators import component
 from tfx.dsl.component.experimental.annotations import InputArtifact, OutputArtifact, Parameter, OutputDict
+
 from tfx.types.standard_artifacts import Model
 
 @component
@@ -40,7 +41,7 @@ def upload_model(
     model = {
         'display_name': display_name,
         'metadata_schema_uri': "",
-        'artifact_uri': model,
+        'artifact_uri': model.uri,
         'container_spec': {
             'image_uri': serving_container,
             'command': [],
