@@ -1,0 +1,68 @@
+name: Create endpoint
+inputs:
+- {name: project, type: String}
+- {name: display_name, type: String}
+- {name: endpoint_path, type: String}
+- {name: location, type: String}
+- {name: api_endpoint, type: String}
+- {name: timeout, type: Integer}
+outputs:
+- {name: endpoint_id, type: String}
+implementation:
+  container:
+    image: gcr.io/jk-mlops-dev/custom-container-ucaip:jarekk
+    command:
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp)
+      printf "%s" "$0" > "$program_path"
+      python3 -u "$program_path" "$@"
+    - "def _make_parent_dirs_and_return_path(file_path: str):\n    import os\n   \
+      \ os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return file_path\n\
+      \ndef create_endpoint(\n    project,\n    display_name,\n    endpoint_path,\
+      \    \n    location, # \"us-central1\",\n    api_endpoint, # \"us-central1-aiplatform.googleapis.com\"\
+      ,\n    timeout,\n    endpoint_id,\n\n):\n  import logging\n  import subprocess\
+      \  \n  from google.cloud import aiplatform\n\n  logging.getLogger().setLevel(logging.INFO)\n\
+      \  if endpoint_path == 'new':  # then create new endpoint, using given display\
+      \ name\n    logging.info('creating new endpoint with display name: %s', display_name)\n\
+      \    client_options = {\"api_endpoint\": api_endpoint}\n    # Initialize client\
+      \ that will be used to create and send requests.\n    client = aiplatform.gapic.EndpointServiceClient(client_options=client_options)\n\
+      \    endpoint = {\"display_name\": display_name}\n    parent = f\"projects/{project}/locations/{location}\"\
+      \n    response = client.create_endpoint(parent=parent, endpoint=endpoint)\n\
+      \    logging.info(\"Long running operation: %s\", response.operation.name)\n\
+      \    create_endpoint_response = response.result(timeout=timeout)\n    logging.info(\"\
+      create_endpoint_response: %s\", create_endpoint_response)\n    endpoint_name\
+      \ = create_endpoint_response.name \n    logging.info('endpoint name: %s', endpoint_name)\n\
+      \  else:  # otherwise, use given endpoint path expression (TODO: add error checking)\n\
+      \    logging.info('using existing endpoint: %s', endpoint_path)\n    endpoint_name\
+      \ = endpoint_path\n  # write the endpoint name (path expression) as output\n\
+      \  with open('temp.txt', \"w\") as outfile:\n    outfile.write(endpoint_name)\n\
+      \  subprocess.run(['gsutil', 'cp', 'temp.txt', endpoint_id])\n\nimport argparse\n\
+      _parser = argparse.ArgumentParser(prog='Create endpoint', description='')\n\
+      _parser.add_argument(\"--project\", dest=\"project\", type=str, required=True,\
+      \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--display-name\", dest=\"\
+      display_name\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+      --endpoint-path\", dest=\"endpoint_path\", type=str, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--location\", dest=\"location\", type=str, required=True,\
+      \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--api-endpoint\", dest=\"\
+      api_endpoint\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+      --timeout\", dest=\"timeout\", type=int, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--endpoint-id\", dest=\"endpoint_id\", type=_make_parent_dirs_and_return_path,\
+      \ required=True, default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\
+      \n_outputs = create_endpoint(**_parsed_args)\n"
+    args:
+    - --project
+    - {inputValue: project}
+    - --display-name
+    - {inputValue: display_name}
+    - --endpoint-path
+    - {inputValue: endpoint_path}
+    - --location
+    - {inputValue: location}
+    - --api-endpoint
+    - {inputValue: api_endpoint}
+    - --timeout
+    - {inputValue: timeout}
+    - --endpoint-id
+    - {outputPath: endpoint_id}

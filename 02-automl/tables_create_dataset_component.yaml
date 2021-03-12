@@ -1,0 +1,104 @@
+name: Create dataset tabular bigquery sample
+inputs:
+- {name: project, type: String}
+- {name: display_name, type: String}
+- {name: bigquery_uri, type: String}
+- {name: location, type: String}
+- {name: api_endpoint, type: String}
+- {name: timeout, type: Integer}
+- {name: drift_res, type: String}
+outputs:
+- {name: dataset_id, type: String}
+implementation:
+  container:
+    image: gcr.io/jk-mlops-dev/custom-container-ucaip:jarekk
+    command:
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp)
+      printf "%s" "$0" > "$program_path"
+      python3 -u "$program_path" "$@"
+    - |
+      def _make_parent_dirs_and_return_path(file_path: str):
+          import os
+          os.makedirs(os.path.dirname(file_path), exist_ok=True)
+          return file_path
+
+      def create_dataset_tabular_bigquery_sample(
+          project,
+          display_name,
+          bigquery_uri, # eg 'bq://aju-dev-demos.london_bikes_weather.bikes_weather',
+          location, # "us-central1",
+          api_endpoint, # "us-central1-aiplatform.googleapis.com",
+          timeout, # 500,
+          drift_res,
+          dataset_id,
+      ):
+
+        import logging
+        import subprocess
+        import time
+
+        logging.getLogger().setLevel(logging.INFO)
+        if drift_res == 'false':
+          logging.warning('dataset drift detected; not proceeding')
+          exit(1)
+
+        from google.cloud import aiplatform
+        from google.protobuf import json_format
+        from google.protobuf.struct_pb2 import Value
+
+        client_options = {"api_endpoint": api_endpoint}
+        # Initialize client that will be used to create and send requests.
+        client = aiplatform.gapic.DatasetServiceClient(client_options=client_options)
+        metadata_dict = {"input_config": {"bigquery_source": {"uri": bigquery_uri}}}
+        metadata = json_format.ParseDict(metadata_dict, Value())
+
+        dataset = {
+            "display_name": display_name,
+            "metadata_schema_uri": "gs://google-cloud-aiplatform/schema/dataset/metadata/tabular_1.0.0.yaml",
+            "metadata": metadata,
+        }
+        parent = f"projects/{project}/locations/{location}"
+        response = client.create_dataset(parent=parent, dataset=dataset)
+        print("Long running operation:", response.operation.name)
+        create_dataset_response = response.result(timeout=timeout)
+        logging.info("create_dataset_response: %s", create_dataset_response)
+        path_components = create_dataset_response.name.split('/')
+        logging.info('got dataset id: %s', path_components[-1])
+        # write the dataset id as output
+        with open('temp.txt', "w") as outfile:
+          outfile.write(path_components[-1])
+        subprocess.run(['gsutil', 'cp', 'temp.txt', dataset_id])
+
+      import argparse
+      _parser = argparse.ArgumentParser(prog='Create dataset tabular bigquery sample', description='')
+      _parser.add_argument("--project", dest="project", type=str, required=True, default=argparse.SUPPRESS)
+      _parser.add_argument("--display-name", dest="display_name", type=str, required=True, default=argparse.SUPPRESS)
+      _parser.add_argument("--bigquery-uri", dest="bigquery_uri", type=str, required=True, default=argparse.SUPPRESS)
+      _parser.add_argument("--location", dest="location", type=str, required=True, default=argparse.SUPPRESS)
+      _parser.add_argument("--api-endpoint", dest="api_endpoint", type=str, required=True, default=argparse.SUPPRESS)
+      _parser.add_argument("--timeout", dest="timeout", type=int, required=True, default=argparse.SUPPRESS)
+      _parser.add_argument("--drift-res", dest="drift_res", type=str, required=True, default=argparse.SUPPRESS)
+      _parser.add_argument("--dataset-id", dest="dataset_id", type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)
+      _parsed_args = vars(_parser.parse_args())
+
+      _outputs = create_dataset_tabular_bigquery_sample(**_parsed_args)
+    args:
+    - --project
+    - {inputValue: project}
+    - --display-name
+    - {inputValue: display_name}
+    - --bigquery-uri
+    - {inputValue: bigquery_uri}
+    - --location
+    - {inputValue: location}
+    - --api-endpoint
+    - {inputValue: api_endpoint}
+    - --timeout
+    - {inputValue: timeout}
+    - --drift-res
+    - {inputValue: drift_res}
+    - --dataset-id
+    - {outputPath: dataset_id}

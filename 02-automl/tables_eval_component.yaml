@@ -1,0 +1,58 @@
+name: Get model evaluation tabular
+inputs:
+- {name: project, type: String}
+- {name: model_id, type: String}
+- {name: location, type: String}
+- {name: api_endpoint, type: String}
+outputs:
+- {name: eval_info, type: String}
+implementation:
+  container:
+    image: gcr.io/jk-mlops-dev/custom-container-ucaip:jarekk
+    command:
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp)
+      printf "%s" "$0" > "$program_path"
+      python3 -u "$program_path" "$@"
+    - "def _make_parent_dirs_and_return_path(file_path: str):\n    import os\n   \
+      \ os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return file_path\n\
+      \ndef get_model_evaluation_tabular(\n    project,\n    model_id,\n    location,\
+      \ #\"us-central1\",\n    api_endpoint, # \"us-central1-aiplatform.googleapis.com\"\
+      ,\n    eval_info,\n):\n  import json\n  import logging\n  import subprocess\
+      \  \n  from google.cloud import aiplatform\n\n  def get_eval_id(client, model_name):\n\
+      \    from google.protobuf.json_format import MessageToDict\n    response = client.list_model_evaluations(parent=model_name)\n\
+      \    for evaluation in response:\n        print(\"model_evaluation\")\n    \
+      \    print(\" name:\", evaluation.name)\n        print(\" metrics_schema_uri:\"\
+      , evaluation.metrics_schema_uri)\n        metrics = MessageToDict(evaluation._pb.metrics)\n\
+      \        for metric in metrics.keys():\n            logging.info('metric: %s,\
+      \ value: %s', metric, metrics[metric])\n        metrics_str = json.dumps(metrics)\n\
+      \n    return (evaluation.name, metrics_str)  # for regression, only one slice\n\
+      \n  logging.getLogger().setLevel(logging.INFO)\n\n  client_options = {\"api_endpoint\"\
+      : api_endpoint}\n  # Initialize client that will be used to create and send\
+      \ requests.\n  client = aiplatform.gapic.ModelServiceClient(client_options=client_options)\n\
+      \  eval_name, metrics_str = get_eval_id(client, model_id)\n  logging.info('got\
+      \ evaluation name: %s', eval_name)\n  logging.info('got metrics dict string:\
+      \ %s', metrics_str)\n  with open('temp.txt', \"w\") as outfile:\n    outfile.write(metrics_str)\n\
+      \  subprocess.run(['gsutil', 'cp', 'temp.txt', eval_info])  \n\nimport argparse\n\
+      _parser = argparse.ArgumentParser(prog='Get model evaluation tabular', description='')\n\
+      _parser.add_argument(\"--project\", dest=\"project\", type=str, required=True,\
+      \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--model-id\", dest=\"model_id\"\
+      , type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+      --location\", dest=\"location\", type=str, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--api-endpoint\", dest=\"api_endpoint\", type=str, required=True,\
+      \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--eval-info\", dest=\"\
+      eval_info\", type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)\n\
+      _parsed_args = vars(_parser.parse_args())\n\n_outputs = get_model_evaluation_tabular(**_parsed_args)\n"
+    args:
+    - --project
+    - {inputValue: project}
+    - --model-id
+    - {inputValue: model_id}
+    - --location
+    - {inputValue: location}
+    - --api-endpoint
+    - {inputValue: api_endpoint}
+    - --eval-info
+    - {outputPath: eval_info}

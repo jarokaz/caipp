@@ -1,0 +1,104 @@
+name: Training tabular regression
+inputs:
+- {name: project, type: String}
+- {name: display_name, type: String}
+- {name: dataset_id, type: String}
+- {name: model_prefix, type: String}
+- {name: target_column, type: String}
+- {name: transformations_str, type: String}
+- {name: location, type: String}
+- {name: api_endpoint, type: String}
+outputs:
+- {name: model_id, type: String}
+- {name: model_dispname, type: String}
+implementation:
+  container:
+    image: gcr.io/jk-mlops-dev/custom-container-ucaip:jarekk
+    command:
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp)
+      printf "%s" "$0" > "$program_path"
+      python3 -u "$program_path" "$@"
+    - "def _make_parent_dirs_and_return_path(file_path: str):\n    import os\n   \
+      \ os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return file_path\n\
+      \ndef training_tabular_regression(\n    project,\n    display_name,\n    dataset_id,\n\
+      \    model_prefix,\n    target_column,\n    transformations_str,\n    location,\
+      \ # \"us-central1\",\n    api_endpoint, # \"us-central1-aiplatform.googleapis.com\"\
+      \n    model_id,\n    model_dispname\n):\n  import json\n  import logging\n \
+      \ import subprocess\n  import time\n  from google.cloud import aiplatform\n\
+      \  from google.protobuf import json_format\n  from google.protobuf.struct_pb2\
+      \ import Value\n  from google.cloud.aiplatform_v1beta1.types import pipeline_state\n\
+      \n  SLEEP_INTERVAL = 100\n\n  logging.getLogger().setLevel(logging.INFO)\n \
+      \ logging.info('using dataset id: %s', dataset_id)\n  client_options = {\"api_endpoint\"\
+      : api_endpoint}\n  # Initialize client that will be used to create and send\
+      \ requests.\n  client = aiplatform.gapic.PipelineServiceClient(client_options=client_options)\n\
+      \  # set the columns used for training and their data types\n  transformations\
+      \ = json.loads(transformations_str)\n  logging.info('using transformations:\
+      \ %s', transformations)\n\n  training_task_inputs_dict = {\n        # required\
+      \ inputs\n        \"targetColumn\": target_column,\n        \"predictionType\"\
+      : \"regression\",\n        \"transformations\": transformations,\n        \"\
+      trainBudgetMilliNodeHours\": 2000,\n        \"disableEarlyStopping\": False,\n\
+      \        \"optimizationObjective\": \"minimize-rmse\",\n  }\n  training_task_inputs\
+      \ = json_format.ParseDict(training_task_inputs_dict, Value())\n  model_display_name\
+      \ = '{}_{}'.format(model_prefix, str(int(time.time())))\n\n  training_pipeline\
+      \ = {\n        \"display_name\": display_name,\n        \"training_task_definition\"\
+      : \"gs://google-cloud-aiplatform/schema/trainingjob/definition/automl_tabular_1.0.0.yaml\"\
+      ,\n        \"training_task_inputs\": training_task_inputs,\n        \"input_data_config\"\
+      : {\n            \"dataset_id\": dataset_id,\n            \"fraction_split\"\
+      : {\n                \"training_fraction\": 0.8,\n                \"validation_fraction\"\
+      : 0.1,\n                \"test_fraction\": 0.1,\n            },\n        },\n\
+      \        \"model_to_upload\": {\"display_name\": model_display_name},\n  }\n\
+      \  parent = f\"projects/{project}/locations/{location}\"\n  response = client.create_training_pipeline(\n\
+      \        parent=parent, training_pipeline=training_pipeline\n  )\n  training_pipeline_name\
+      \ = response.name\n  logging.info(\"pipeline name: %s\", training_pipeline_name)\n\
+      \  # Poll periodically until training completes\n  while True:\n    mresponse\
+      \ = client.get_training_pipeline(name=training_pipeline_name)\n    logging.info('mresponse:\
+      \ %s', mresponse)\n    logging.info('job state: %s', mresponse.state)\n    if\
+      \ mresponse.state == pipeline_state.PipelineState.PIPELINE_STATE_SUCCEEDED:\n\
+      \      logging.info('training finished')\n      # write some outputs once finished\n\
+      \      model_name = mresponse.model_to_upload.name \n      logging.info('got\
+      \ model name: %s', model_name)\n      with open('temp.txt', \"w\") as outfile:\n\
+      \        outfile.write(model_name)\n      subprocess.run(['gsutil', 'cp', 'temp.txt',\
+      \ model_id])\n      with open('temp2.txt', \"w\") as outfile:\n        outfile.write(model_display_name)\n\
+      \      subprocess.run(['gsutil', 'cp', 'temp2.txt', model_dispname])      \n\
+      \      break\n    else:\n      time.sleep(SLEEP_INTERVAL)\n\nimport argparse\n\
+      _parser = argparse.ArgumentParser(prog='Training tabular regression', description='')\n\
+      _parser.add_argument(\"--project\", dest=\"project\", type=str, required=True,\
+      \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--display-name\", dest=\"\
+      display_name\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+      --dataset-id\", dest=\"dataset_id\", type=str, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--model-prefix\", dest=\"model_prefix\", type=str, required=True,\
+      \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--target-column\", dest=\"\
+      target_column\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+      --transformations-str\", dest=\"transformations_str\", type=str, required=True,\
+      \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--location\", dest=\"location\"\
+      , type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+      --api-endpoint\", dest=\"api_endpoint\", type=str, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--model-id\", dest=\"model_id\", type=_make_parent_dirs_and_return_path,\
+      \ required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--model-dispname\"\
+      , dest=\"model_dispname\", type=_make_parent_dirs_and_return_path, required=True,\
+      \ default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\n\
+      _outputs = training_tabular_regression(**_parsed_args)\n"
+    args:
+    - --project
+    - {inputValue: project}
+    - --display-name
+    - {inputValue: display_name}
+    - --dataset-id
+    - {inputValue: dataset_id}
+    - --model-prefix
+    - {inputValue: model_prefix}
+    - --target-column
+    - {inputValue: target_column}
+    - --transformations-str
+    - {inputValue: transformations_str}
+    - --location
+    - {inputValue: location}
+    - --api-endpoint
+    - {inputValue: api_endpoint}
+    - --model-id
+    - {outputPath: model_id}
+    - --model-dispname
+    - {outputPath: model_dispname}

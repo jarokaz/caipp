@@ -1,0 +1,121 @@
+name: Automl tables
+inputs:
+- {name: gcp_project_id, type: String, default: YOUR_PROJECT_HERE, optional: true}
+- {name: gcp_region, type: String, default: us-central1, optional: true}
+- {name: dataset_display_name, type: String, default: YOUR_DATASET_NAME, optional: true}
+- {name: api_endpoint, type: String, default: us-central1-aiplatform.googleapis.com,
+  optional: true}
+- {name: timeout, type: Integer, default: '2000', optional: true}
+- {name: bigquery_uri, type: String, default: 'bq://aju-dev-demos.london_bikes_weather.bikes_weather',
+  optional: true}
+- {name: target_col_name, type: String, default: duration, optional: true}
+- {name: time_col_name, type: String, default: none, optional: true}
+- {name: transformations, type: String, default: '{}', optional: true}
+- {name: train_budget_milli_node_hours, type: Integer, default: '1000', optional: true}
+- {name: model_prefix, type: String, default: bw, optional: true}
+- {name: training_display_name, type: String, default: CHANGE THIS, optional: true}
+- {name: endpoint_display_name, type: String, default: CHANGE THIS, optional: true}
+- {name: endpoint_path, type: String, default: new, optional: true}
+- {name: thresholds_dict_str, type: String, default: '{"meanAbsoluteError": 470}',
+  optional: true}
+- name: drift_res
+  type: String
+  default: "true"
+  optional: true
+implementation:
+  graph:
+    tasks:
+      Create dataset tabular bigquery sample:
+        componentRef: {digest: 0acd6b9145c44e6aa1f8810d3c188502b1a412d170bdf2e9fd3f150a35856f97,
+          url: 'https://gist.githubusercontent.com/amygdala/33b424c8cb2a287728fe0f07a81b19e0/raw/c79fc70908f7f36267f37edd923088e4c28da725/tables_create_dataset_component.yaml'}
+        arguments:
+          project:
+            graphInput: {inputName: gcp_project_id}
+          display_name:
+            graphInput: {inputName: dataset_display_name}
+          bigquery_uri:
+            graphInput: {inputName: bigquery_uri}
+          location:
+            graphInput: {inputName: gcp_region}
+          api_endpoint:
+            graphInput: {inputName: api_endpoint}
+          timeout:
+            graphInput: {inputName: timeout}
+          drift_res:
+            graphInput: {inputName: drift_res}
+      Training tabular regression:
+        componentRef: {digest: e91889a06fb69e0c4841be4728c43894f6651fd9bda6ad8bac70f3b065c07393,
+          url: 'https://gist.githubusercontent.com/amygdala/7892b872b3b6ccfa518ac7f447010f22/raw/e3424e8a5ed9010668478cd5a8e3b7396fe738d2/tables_train_component.yaml'}
+        arguments:
+          project:
+            graphInput: {inputName: gcp_project_id}
+          display_name:
+            graphInput: {inputName: training_display_name}
+          dataset_id:
+            taskOutput: {outputName: dataset_id, taskId: Create dataset tabular bigquery
+                sample, type: String}
+          model_prefix:
+            graphInput: {inputName: model_prefix}
+          target_column:
+            graphInput: {inputName: target_col_name}
+          transformations_str:
+            graphInput: {inputName: transformations}
+          location:
+            graphInput: {inputName: gcp_region}
+          api_endpoint:
+            graphInput: {inputName: api_endpoint}
+      Get model evaluation tabular:
+        componentRef: {digest: a5e487d5ce23e61868eb215474ab7de697dfd733fe626d69f53150e98d35b4b1,
+          url: 'https://gist.githubusercontent.com/amygdala/7c3a74dcabb4a42bcf46470d68715c09/raw/a5f140acf5e0a952f379b07f1d77251fdebe1998/tables_eval_component.yaml'}
+        arguments:
+          project:
+            graphInput: {inputName: gcp_project_id}
+          model_id:
+            taskOutput: {outputName: model_id, taskId: Training tabular regression,
+              type: String}
+          location:
+            graphInput: {inputName: gcp_region}
+          api_endpoint:
+            graphInput: {inputName: api_endpoint}
+      Create endpoint:
+        componentRef: {digest: 0b537c94460eed1303973690b88aacd81bd652737749f6cdd2df031ba72682b5,
+          url: 'https://gist.githubusercontent.com/amygdala/8331619bd400e695f4f41c62747d9bd1/raw/63b0d69857ad6dc82cc9fe9e6f783a55fa0cc465/tables_endpoint_component.yaml'}
+        arguments:
+          project:
+            graphInput: {inputName: gcp_project_id}
+          display_name:
+            graphInput: {inputName: dataset_display_name}
+          endpoint_path:
+            graphInput: {inputName: endpoint_path}
+          location:
+            graphInput: {inputName: gcp_region}
+          api_endpoint:
+            graphInput: {inputName: api_endpoint}
+          timeout:
+            graphInput: {inputName: timeout}
+      Deploy automl tabular model:
+        componentRef: {digest: 4ab71fc1841b3572e714d09bbee6af9f18efcd7c096ba7c957050999563aa850,
+          url: 'https://gist.githubusercontent.com/amygdala/3a0db8c44cbeb573f6437978b65ff3ec/raw/6923d101d0c0319088dfa19a2b0fa6919b484c55/tables_deploy_component.yaml'}
+        arguments:
+          project:
+            graphInput: {inputName: gcp_project_id}
+          endpoint_name:
+            taskOutput: {outputName: endpoint_id, taskId: Create endpoint, type: String}
+          model_name:
+            taskOutput: {outputName: model_id, taskId: Training tabular regression,
+              type: String}
+          deployed_model_display_name:
+            taskOutput: {outputName: model_dispname, taskId: Training tabular regression,
+              type: String}
+          eval_info:
+            taskOutput: {outputName: eval_info, taskId: Get model evaluation tabular,
+              type: String}
+          location:
+            graphInput: {inputName: gcp_region}
+          api_endpoint:
+            graphInput: {inputName: api_endpoint}
+          timeout:
+            graphInput: {inputName: timeout}
+          thresholds_dict_str:
+            graphInput: {inputName: thresholds_dict_str}
+    outputValues: {}

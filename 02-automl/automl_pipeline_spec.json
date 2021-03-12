@@ -1,0 +1,517 @@
+{
+  "pipelineSpec": {
+    "runtimeParameters": {
+      "thresholds_dict_str": {
+        "type": "STRING",
+        "defaultValue": {
+          "stringValue": "{\"meanAbsoluteError\": 470}"
+        }
+      },
+      "gcp_region": {
+        "defaultValue": {
+          "stringValue": "us-central1"
+        },
+        "type": "STRING"
+      },
+      "training_display_name": {
+        "type": "STRING",
+        "defaultValue": {
+          "stringValue": "CHANGE THIS"
+        }
+      },
+      "target_col_name": {
+        "type": "STRING",
+        "defaultValue": {
+          "stringValue": "duration"
+        }
+      },
+      "transformations": {
+        "defaultValue": {
+          "stringValue": "[{\"auto\": {\"column_name\": \"bike_id\"}}, {\"auto\": {\"column_name\": \"day_of_week\"}}, {\"auto\": {\"column_name\": \"dewp\"}}, {\"auto\": {\"column_name\": \"duration\"}}, {\"auto\": {\"column_name\": \"end_latitude\"}}, {\"auto\": {\"column_name\": \"end_longitude\"}}, {\"categorical\": {\"column_name\": \"end_station_id\"}}, {\"auto\": {\"column_name\": \"euclidean\"}}, {\"categorical\": {\"column_name\": \"loc_cross\"}}, {\"auto\": {\"column_name\": \"max\"}}, {\"auto\": {\"column_name\": \"min\"}}, {\"auto\": {\"column_name\": \"prcp\"}}, {\"auto\": {\"column_name\": \"start_latitude\"}}, {\"auto\": {\"column_name\": \"start_longitude\"}}, {\"categorical\": {\"column_name\": \"start_station_id\"}}, {\"auto\": {\"column_name\": \"temp\"}}, {\"timestamp\": {\"column_name\": \"ts\"}}]"
+        },
+        "type": "STRING"
+      },
+      "model_prefix": {
+        "type": "STRING",
+        "defaultValue": {
+          "stringValue": "bw"
+        }
+      },
+      "drift_res": {
+        "defaultValue": {
+          "stringValue": "true"
+        },
+        "type": "STRING"
+      },
+      "endpoint_display_name": {
+        "type": "STRING",
+        "defaultValue": {
+          "stringValue": "CHANGE THIS"
+        }
+      },
+      "gcp_project_id": {
+        "defaultValue": {
+          "stringValue": "YOUR_PROJECT_HERE"
+        },
+        "type": "STRING"
+      },
+      "api_endpoint": {
+        "type": "STRING",
+        "defaultValue": {
+          "stringValue": "us-central1-aiplatform.googleapis.com"
+        }
+      },
+      "bigquery_uri": {
+        "defaultValue": {
+          "stringValue": "bq://aju-dev-demos.london_bikes_weather.bikes_weather"
+        },
+        "type": "STRING"
+      },
+      "time_col_name": {
+        "defaultValue": {
+          "stringValue": "none"
+        },
+        "type": "STRING"
+      },
+      "train_budget_milli_node_hours": {
+        "type": "INT",
+        "defaultValue": {
+          "intValue": "1000"
+        }
+      },
+      "timeout": {
+        "type": "INT",
+        "defaultValue": {
+          "intValue": "2000"
+        }
+      },
+      "endpoint_path": {
+        "type": "STRING",
+        "defaultValue": {
+          "stringValue": "new"
+        }
+      },
+      "dataset_display_name": {
+        "defaultValue": {
+          "stringValue": "YOUR_DATASET_NAME"
+        },
+        "type": "STRING"
+      }
+    },
+    "deploymentConfig": {
+      "executors": {
+        "Create dataset tabular bigquery sample": {
+          "container": {
+            "command": [
+              "sh",
+              "-ec",
+              "program_path=$(mktemp)\nprintf \"%s\" \"$0\" > \"$program_path\"\npython3 -u \"$program_path\" \"$@\"\n",
+              "def _make_parent_dirs_and_return_path(file_path: str):\n    import os\n    os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return file_path\n\ndef create_dataset_tabular_bigquery_sample(\n    project,\n    display_name,\n    bigquery_uri, # eg 'bq://aju-dev-demos.london_bikes_weather.bikes_weather',\n    location, # \"us-central1\",\n    api_endpoint, # \"us-central1-aiplatform.googleapis.com\",\n    timeout, # 500,\n    drift_res,\n    dataset_id,\n):\n\n  import logging\n  import subprocess\n  import time\n\n  logging.getLogger().setLevel(logging.INFO)\n  if drift_res == 'false':\n    logging.warning('dataset drift detected; not proceeding')\n    exit(1)\n\n  from google.cloud import aiplatform\n  from google.protobuf import json_format\n  from google.protobuf.struct_pb2 import Value\n\n  client_options = {\"api_endpoint\": api_endpoint}\n  # Initialize client that will be used to create and send requests.\n  client = aiplatform.gapic.DatasetServiceClient(client_options=client_options)\n  metadata_dict = {\"input_config\": {\"bigquery_source\": {\"uri\": bigquery_uri}}}\n  metadata = json_format.ParseDict(metadata_dict, Value())\n\n  dataset = {\n      \"display_name\": display_name,\n      \"metadata_schema_uri\": \"gs://google-cloud-aiplatform/schema/dataset/metadata/tabular_1.0.0.yaml\",\n      \"metadata\": metadata,\n  }\n  parent = f\"projects/{project}/locations/{location}\"\n  response = client.create_dataset(parent=parent, dataset=dataset)\n  print(\"Long running operation:\", response.operation.name)\n  create_dataset_response = response.result(timeout=timeout)\n  logging.info(\"create_dataset_response: %s\", create_dataset_response)\n  path_components = create_dataset_response.name.split('/')\n  logging.info('got dataset id: %s', path_components[-1])\n  # write the dataset id as output\n  with open('temp.txt', \"w\") as outfile:\n    outfile.write(path_components[-1])\n  subprocess.run(['gsutil', 'cp', 'temp.txt', dataset_id])\n\nimport argparse\n_parser = argparse.ArgumentParser(prog='Create dataset tabular bigquery sample', description='')\n_parser.add_argument(\"--project\", dest=\"project\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--display-name\", dest=\"display_name\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--bigquery-uri\", dest=\"bigquery_uri\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--location\", dest=\"location\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--api-endpoint\", dest=\"api_endpoint\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--timeout\", dest=\"timeout\", type=int, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--drift-res\", dest=\"drift_res\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--dataset-id\", dest=\"dataset_id\", type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\n_outputs = create_dataset_tabular_bigquery_sample(**_parsed_args)\n"
+            ],
+            "image": "gcr.io/google-samples/automl-ucaip:v1",
+            "args": [
+              "--project",
+              "{{$.inputs.parameters['project']}}",
+              "--display-name",
+              "{{$.inputs.parameters['display_name']}}",
+              "--bigquery-uri",
+              "{{$.inputs.parameters['bigquery_uri']}}",
+              "--location",
+              "{{$.inputs.parameters['location']}}",
+              "--api-endpoint",
+              "{{$.inputs.parameters['api_endpoint']}}",
+              "--timeout",
+              "{{$.inputs.parameters['timeout']}}",
+              "--drift-res",
+              "{{$.inputs.parameters['drift_res']}}",
+              "--dataset-id",
+              "{{$.outputs.parameters['dataset_id'].output_file}}"
+            ]
+          }
+        },
+        "Training tabular regression": {
+          "container": {
+            "args": [
+              "--project",
+              "{{$.inputs.parameters['project']}}",
+              "--display-name",
+              "{{$.inputs.parameters['display_name']}}",
+              "--dataset-id",
+              "{{$.inputs.parameters['dataset_id']}}",
+              "--model-prefix",
+              "{{$.inputs.parameters['model_prefix']}}",
+              "--target-column",
+              "{{$.inputs.parameters['target_column']}}",
+              "--transformations-str",
+              "{{$.inputs.parameters['transformations_str']}}",
+              "--location",
+              "{{$.inputs.parameters['location']}}",
+              "--api-endpoint",
+              "{{$.inputs.parameters['api_endpoint']}}",
+              "--model-id",
+              "{{$.outputs.parameters['model_id'].output_file}}",
+              "--model-dispname",
+              "{{$.outputs.parameters['model_dispname'].output_file}}"
+            ],
+            "command": [
+              "sh",
+              "-ec",
+              "program_path=$(mktemp)\nprintf \"%s\" \"$0\" > \"$program_path\"\npython3 -u \"$program_path\" \"$@\"\n",
+              "def _make_parent_dirs_and_return_path(file_path: str):\n    import os\n    os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return file_path\n\ndef training_tabular_regression(\n    project,\n    display_name,\n    dataset_id,\n    model_prefix,\n    target_column,\n    transformations_str,\n    location, # \"us-central1\",\n    api_endpoint, # \"us-central1-aiplatform.googleapis.com\"\n    model_id,\n    model_dispname\n):\n  import json\n  import logging\n  import subprocess\n  import time\n  from google.cloud import aiplatform\n  from google.protobuf import json_format\n  from google.protobuf.struct_pb2 import Value\n  from google.cloud.aiplatform_v1beta1.types import pipeline_state\n\n  SLEEP_INTERVAL = 100\n\n  logging.getLogger().setLevel(logging.INFO)\n  logging.info('using dataset id: %s', dataset_id)\n  client_options = {\"api_endpoint\": api_endpoint}\n  # Initialize client that will be used to create and send requests.\n  client = aiplatform.gapic.PipelineServiceClient(client_options=client_options)\n  # set the columns used for training and their data types\n  transformations = json.loads(transformations_str)\n  logging.info('using transformations: %s', transformations)\n\n  training_task_inputs_dict = {\n        # required inputs\n        \"targetColumn\": target_column,\n        \"predictionType\": \"regression\",\n        \"transformations\": transformations,\n        \"trainBudgetMilliNodeHours\": 2000,\n        \"disableEarlyStopping\": False,\n        \"optimizationObjective\": \"minimize-rmse\",\n  }\n  training_task_inputs = json_format.ParseDict(training_task_inputs_dict, Value())\n  model_display_name = '{}_{}'.format(model_prefix, str(int(time.time())))\n\n  training_pipeline = {\n        \"display_name\": display_name,\n        \"training_task_definition\": \"gs://google-cloud-aiplatform/schema/trainingjob/definition/automl_tabular_1.0.0.yaml\",\n        \"training_task_inputs\": training_task_inputs,\n        \"input_data_config\": {\n            \"dataset_id\": dataset_id,\n            \"fraction_split\": {\n                \"training_fraction\": 0.8,\n                \"validation_fraction\": 0.1,\n                \"test_fraction\": 0.1,\n            },\n        },\n        \"model_to_upload\": {\"display_name\": model_display_name},\n  }\n  parent = f\"projects/{project}/locations/{location}\"\n  response = client.create_training_pipeline(\n        parent=parent, training_pipeline=training_pipeline\n  )\n  training_pipeline_name = response.name\n  logging.info(\"pipeline name: %s\", training_pipeline_name)\n  # Poll periodically until training completes\n  while True:\n    mresponse = client.get_training_pipeline(name=training_pipeline_name)\n    logging.info('mresponse: %s', mresponse)\n    logging.info('job state: %s', mresponse.state)\n    if mresponse.state == pipeline_state.PipelineState.PIPELINE_STATE_SUCCEEDED:\n      logging.info('training finished')\n      # write some outputs once finished\n      model_name = mresponse.model_to_upload.name \n      logging.info('got model name: %s', model_name)\n      with open('temp.txt', \"w\") as outfile:\n        outfile.write(model_name)\n      subprocess.run(['gsutil', 'cp', 'temp.txt', model_id])\n      with open('temp2.txt', \"w\") as outfile:\n        outfile.write(model_display_name)\n      subprocess.run(['gsutil', 'cp', 'temp2.txt', model_dispname])      \n      break\n    else:\n      time.sleep(SLEEP_INTERVAL)\n\nimport argparse\n_parser = argparse.ArgumentParser(prog='Training tabular regression', description='')\n_parser.add_argument(\"--project\", dest=\"project\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--display-name\", dest=\"display_name\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--dataset-id\", dest=\"dataset_id\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--model-prefix\", dest=\"model_prefix\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--target-column\", dest=\"target_column\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--transformations-str\", dest=\"transformations_str\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--location\", dest=\"location\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--api-endpoint\", dest=\"api_endpoint\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--model-id\", dest=\"model_id\", type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--model-dispname\", dest=\"model_dispname\", type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\n_outputs = training_tabular_regression(**_parsed_args)\n"
+            ],
+            "image": "gcr.io/google-samples/automl-ucaip:v1"
+          }
+        },
+        "Create endpoint": {
+          "container": {
+            "args": [
+              "--project",
+              "{{$.inputs.parameters['project']}}",
+              "--display-name",
+              "{{$.inputs.parameters['display_name']}}",
+              "--endpoint-path",
+              "{{$.inputs.parameters['endpoint_path']}}",
+              "--location",
+              "{{$.inputs.parameters['location']}}",
+              "--api-endpoint",
+              "{{$.inputs.parameters['api_endpoint']}}",
+              "--timeout",
+              "{{$.inputs.parameters['timeout']}}",
+              "--endpoint-id",
+              "{{$.outputs.parameters['endpoint_id'].output_file}}"
+            ],
+            "command": [
+              "sh",
+              "-ec",
+              "program_path=$(mktemp)\nprintf \"%s\" \"$0\" > \"$program_path\"\npython3 -u \"$program_path\" \"$@\"\n",
+              "def _make_parent_dirs_and_return_path(file_path: str):\n    import os\n    os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return file_path\n\ndef create_endpoint(\n    project,\n    display_name,\n    endpoint_path,    \n    location, # \"us-central1\",\n    api_endpoint, # \"us-central1-aiplatform.googleapis.com\",\n    timeout,\n    endpoint_id,\n\n):\n  import logging\n  import subprocess  \n  from google.cloud import aiplatform\n\n  logging.getLogger().setLevel(logging.INFO)\n  if endpoint_path == 'new':  # then create new endpoint, using given display name\n    logging.info('creating new endpoint with display name: %s', display_name)\n    client_options = {\"api_endpoint\": api_endpoint}\n    # Initialize client that will be used to create and send requests.\n    client = aiplatform.gapic.EndpointServiceClient(client_options=client_options)\n    endpoint = {\"display_name\": display_name}\n    parent = f\"projects/{project}/locations/{location}\"\n    response = client.create_endpoint(parent=parent, endpoint=endpoint)\n    logging.info(\"Long running operation: %s\", response.operation.name)\n    create_endpoint_response = response.result(timeout=timeout)\n    logging.info(\"create_endpoint_response: %s\", create_endpoint_response)\n    endpoint_name = create_endpoint_response.name \n    logging.info('endpoint name: %s', endpoint_name)\n  else:  # otherwise, use given endpoint path expression (TODO: add error checking)\n    logging.info('using existing endpoint: %s', endpoint_path)\n    endpoint_name = endpoint_path\n  # write the endpoint name (path expression) as output\n  with open('temp.txt', \"w\") as outfile:\n    outfile.write(endpoint_name)\n  subprocess.run(['gsutil', 'cp', 'temp.txt', endpoint_id])\n\nimport argparse\n_parser = argparse.ArgumentParser(prog='Create endpoint', description='')\n_parser.add_argument(\"--project\", dest=\"project\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--display-name\", dest=\"display_name\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--endpoint-path\", dest=\"endpoint_path\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--location\", dest=\"location\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--api-endpoint\", dest=\"api_endpoint\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--timeout\", dest=\"timeout\", type=int, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--endpoint-id\", dest=\"endpoint_id\", type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\n_outputs = create_endpoint(**_parsed_args)\n"
+            ],
+            "image": "gcr.io/google-samples/automl-ucaip:v1"
+          }
+        },
+        "Get model evaluation tabular": {
+          "container": {
+            "args": [
+              "--project",
+              "{{$.inputs.parameters['project']}}",
+              "--model-id",
+              "{{$.inputs.parameters['model_id']}}",
+              "--location",
+              "{{$.inputs.parameters['location']}}",
+              "--api-endpoint",
+              "{{$.inputs.parameters['api_endpoint']}}",
+              "--eval-info",
+              "{{$.outputs.parameters['eval_info'].output_file}}"
+            ],
+            "command": [
+              "sh",
+              "-ec",
+              "program_path=$(mktemp)\nprintf \"%s\" \"$0\" > \"$program_path\"\npython3 -u \"$program_path\" \"$@\"\n",
+              "def _make_parent_dirs_and_return_path(file_path: str):\n    import os\n    os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return file_path\n\ndef get_model_evaluation_tabular(\n    project,\n    model_id,\n    location, #\"us-central1\",\n    api_endpoint, # \"us-central1-aiplatform.googleapis.com\",\n    eval_info,\n):\n  import json\n  import logging\n  import subprocess  \n  from google.cloud import aiplatform\n\n  def get_eval_id(client, model_name):\n    from google.protobuf.json_format import MessageToDict\n    response = client.list_model_evaluations(parent=model_name)\n    for evaluation in response:\n        print(\"model_evaluation\")\n        print(\" name:\", evaluation.name)\n        print(\" metrics_schema_uri:\", evaluation.metrics_schema_uri)\n        metrics = MessageToDict(evaluation._pb.metrics)\n        for metric in metrics.keys():\n            logging.info('metric: %s, value: %s', metric, metrics[metric])\n        metrics_str = json.dumps(metrics)\n\n    return (evaluation.name, metrics_str)  # for regression, only one slice\n\n  logging.getLogger().setLevel(logging.INFO)\n\n  client_options = {\"api_endpoint\": api_endpoint}\n  # Initialize client that will be used to create and send requests.\n  client = aiplatform.gapic.ModelServiceClient(client_options=client_options)\n  eval_name, metrics_str = get_eval_id(client, model_id)\n  logging.info('got evaluation name: %s', eval_name)\n  logging.info('got metrics dict string: %s', metrics_str)\n  with open('temp.txt', \"w\") as outfile:\n    outfile.write(metrics_str)\n  subprocess.run(['gsutil', 'cp', 'temp.txt', eval_info])  \n\nimport argparse\n_parser = argparse.ArgumentParser(prog='Get model evaluation tabular', description='')\n_parser.add_argument(\"--project\", dest=\"project\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--model-id\", dest=\"model_id\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--location\", dest=\"location\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--api-endpoint\", dest=\"api_endpoint\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--eval-info\", dest=\"eval_info\", type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\n_outputs = get_model_evaluation_tabular(**_parsed_args)\n"
+            ],
+            "image": "gcr.io/google-samples/automl-ucaip:v1"
+          }
+        },
+        "Deploy automl tabular model": {
+          "container": {
+            "image": "gcr.io/google-samples/automl-ucaip:v1",
+            "args": [
+              "--project",
+              "{{$.inputs.parameters['project']}}",
+              "--endpoint-name",
+              "{{$.inputs.parameters['endpoint_name']}}",
+              "--model-name",
+              "{{$.inputs.parameters['model_name']}}",
+              "--deployed-model-display-name",
+              "{{$.inputs.parameters['deployed_model_display_name']}}",
+              "--eval-info",
+              "{{$.inputs.parameters['eval_info']}}",
+              "--location",
+              "{{$.inputs.parameters['location']}}",
+              "--api-endpoint",
+              "{{$.inputs.parameters['api_endpoint']}}",
+              "--timeout",
+              "{{$.inputs.parameters['timeout']}}",
+              "--thresholds-dict-str",
+              "{{$.inputs.parameters['thresholds_dict_str']}}"
+            ],
+            "command": [
+              "sh",
+              "-ec",
+              "program_path=$(mktemp)\nprintf \"%s\" \"$0\" > \"$program_path\"\npython3 -u \"$program_path\" \"$@\"\n",
+              "def deploy_automl_tabular_model(\n    project,\n    endpoint_name,\n    model_name,\n    deployed_model_display_name,\n    eval_info,\n    location = \"us-central1\",\n    api_endpoint = \"us-central1-aiplatform.googleapis.com\",\n    timeout = 7200,\n    thresholds_dict_str = '{\"meanAbsoluteError\": 470}'\n):\n  import json\n  import logging\n  from google.cloud import aiplatform\n\n  # check the model metrics against the given thresholds dict\n  def regression_thresholds_check(metrics_dict, thresholds_dict):\n    for k, v in thresholds_dict.items():\n      logging.info('k {}, v {}'.format(k, v))\n      if k in ['rootMeanSquaredError', 'meanAbsoluteError']:  # lower is better\n        if metrics_dict[k] > v:  # if over threshold\n          logging.info('{} > {}; returning False'.format(\n              metrics_dict[k], v))\n          return False\n      elif k in ['rSquared']:  # higher is better\n        if metrics_dict[k] < v:  # if under threshold\n          logging.info('{} < {}; returning False'.format(\n              metrics_dict[k], v))\n          return False\n      else:  # unhandled key in thresholds dict\n        # TODO: should the default instead be to deploy?\n        logging.info('unhandled threshold key %s; not deploying', k)\n        return False\n    logging.info('threshold checks passed.')\n    return True  \n\n  logging.getLogger().setLevel(logging.INFO)\n  metrics_dict = json.loads(eval_info)\n  thresholds_dict = json.loads(thresholds_dict_str)\n  logging.info('got metrics dict: %s', metrics_dict)\n  logging.info('got thresholds dict: %s', thresholds_dict)\n  deploy = regression_thresholds_check(metrics_dict, thresholds_dict)\n  if not deploy:\n    # then don't deploy the model\n    logging.warning('model is not accurate enough to deploy')\n    return \n\n  client_options = {\"api_endpoint\": api_endpoint}\n  # Initialize client that will be used to create and send requests.\n  client = aiplatform.gapic.EndpointServiceClient(client_options=client_options)\n  deployed_model = {\n      # format: 'projects/{project}/locations/{location}/models/{model}'\n      \"model\": model_name,\n      \"display_name\": deployed_model_display_name,\n      \"dedicated_resources\": {\n          \"min_replica_count\": 1,\n          \"machine_spec\": {\n              \"machine_type\": \"n1-standard-8\",\n              # Accelerators can be used only if the model specifies a GPU image.\n              # 'accelerator_type': aiplatform.AcceleratorType.NVIDIA_TESLA_K80,\n              # 'accelerator_count': 1,\n          },\n      }        \n  }\n  # key '0' assigns traffic for the newly deployed model\n  # Traffic percentage values must add up to 100\n  # Leave dictionary empty if endpoint should not accept any traffic\n  traffic_split = {\"0\": 100}\n  response = client.deploy_model(\n      endpoint=endpoint_name, deployed_model=deployed_model, traffic_split=traffic_split\n  )\n  print(\"Long running operation:\", response.operation.name)\n  deploy_model_response = response.result(timeout=timeout)\n  print(\"deploy_model_response:\", deploy_model_response)\n\nimport argparse\n_parser = argparse.ArgumentParser(prog='Deploy automl tabular model', description='')\n_parser.add_argument(\"--project\", dest=\"project\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--endpoint-name\", dest=\"endpoint_name\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--model-name\", dest=\"model_name\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--deployed-model-display-name\", dest=\"deployed_model_display_name\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--eval-info\", dest=\"eval_info\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--location\", dest=\"location\", type=str, required=False, default=argparse.SUPPRESS)\n_parser.add_argument(\"--api-endpoint\", dest=\"api_endpoint\", type=str, required=False, default=argparse.SUPPRESS)\n_parser.add_argument(\"--timeout\", dest=\"timeout\", type=int, required=False, default=argparse.SUPPRESS)\n_parser.add_argument(\"--thresholds-dict-str\", dest=\"thresholds_dict_str\", type=str, required=False, default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\n_outputs = deploy_automl_tabular_model(**_parsed_args)\n"
+            ]
+          }
+        }
+      },
+      "@type": "type.googleapis.com/ml_pipelines.PipelineDeploymentConfig"
+    },
+    "sdkVersion": "kfp-1.4.0",
+    "pipelineInfo": {
+      "name": "ucaip-automl-tables-subgraph"
+    },
+    "tasks": [
+      {
+        "executorLabel": "Create dataset tabular bigquery sample",
+        "inputs": {
+          "parameters": {
+            "location": {
+              "runtimeValue": {
+                "runtimeParameter": "gcp_region"
+              }
+            },
+            "timeout": {
+              "runtimeValue": {
+                "runtimeParameter": "timeout"
+              }
+            },
+            "bigquery_uri": {
+              "runtimeValue": {
+                "runtimeParameter": "bigquery_uri"
+              }
+            },
+            "api_endpoint": {
+              "runtimeValue": {
+                "runtimeParameter": "api_endpoint"
+              }
+            },
+            "project": {
+              "runtimeValue": {
+                "runtimeParameter": "gcp_project_id"
+              }
+            },
+            "drift_res": {
+              "runtimeValue": {
+                "runtimeParameter": "drift_res"
+              }
+            },
+            "display_name": {
+              "runtimeValue": {
+                "runtimeParameter": "dataset_display_name"
+              }
+            }
+          }
+        },
+        "taskInfo": {
+          "name": "Create dataset tabular bigquery sample"
+        },
+        "outputs": {
+          "parameters": {
+            "dataset_id": {
+              "type": "STRING"
+            }
+          }
+        }
+      },
+      {
+        "taskInfo": {
+          "name": "Training tabular regression"
+        },
+        "inputs": {
+          "parameters": {
+            "location": {
+              "runtimeValue": {
+                "runtimeParameter": "gcp_region"
+              }
+            },
+            "model_prefix": {
+              "runtimeValue": {
+                "runtimeParameter": "model_prefix"
+              }
+            },
+            "project": {
+              "runtimeValue": {
+                "runtimeParameter": "gcp_project_id"
+              }
+            },
+            "api_endpoint": {
+              "runtimeValue": {
+                "runtimeParameter": "api_endpoint"
+              }
+            },
+            "target_column": {
+              "runtimeValue": {
+                "runtimeParameter": "target_col_name"
+              }
+            },
+            "transformations_str": {
+              "runtimeValue": {
+                "runtimeParameter": "transformations"
+              }
+            },
+            "display_name": {
+              "runtimeValue": {
+                "runtimeParameter": "training_display_name"
+              }
+            },
+            "dataset_id": {
+              "taskOutputParameter": {
+                "outputParameterKey": "dataset_id",
+                "producerTask": "Create dataset tabular bigquery sample"
+              }
+            }
+          }
+        },
+        "executorLabel": "Training tabular regression",
+        "outputs": {
+          "parameters": {
+            "model_id": {
+              "type": "STRING"
+            },
+            "model_dispname": {
+              "type": "STRING"
+            }
+          }
+        }
+      },
+      {
+        "executorLabel": "Get model evaluation tabular",
+        "outputs": {
+          "parameters": {
+            "eval_info": {
+              "type": "STRING"
+            }
+          }
+        },
+        "taskInfo": {
+          "name": "Get model evaluation tabular"
+        },
+        "inputs": {
+          "parameters": {
+            "api_endpoint": {
+              "runtimeValue": {
+                "runtimeParameter": "api_endpoint"
+              }
+            },
+            "project": {
+              "runtimeValue": {
+                "runtimeParameter": "gcp_project_id"
+              }
+            },
+            "location": {
+              "runtimeValue": {
+                "runtimeParameter": "gcp_region"
+              }
+            },
+            "model_id": {
+              "taskOutputParameter": {
+                "outputParameterKey": "model_id",
+                "producerTask": "Training tabular regression"
+              }
+            }
+          }
+        }
+      },
+      {
+        "executorLabel": "Create endpoint",
+        "outputs": {
+          "parameters": {
+            "endpoint_id": {
+              "type": "STRING"
+            }
+          }
+        },
+        "inputs": {
+          "parameters": {
+            "timeout": {
+              "runtimeValue": {
+                "runtimeParameter": "timeout"
+              }
+            },
+            "api_endpoint": {
+              "runtimeValue": {
+                "runtimeParameter": "api_endpoint"
+              }
+            },
+            "endpoint_path": {
+              "runtimeValue": {
+                "runtimeParameter": "endpoint_path"
+              }
+            },
+            "project": {
+              "runtimeValue": {
+                "runtimeParameter": "gcp_project_id"
+              }
+            },
+            "display_name": {
+              "runtimeValue": {
+                "runtimeParameter": "dataset_display_name"
+              }
+            },
+            "location": {
+              "runtimeValue": {
+                "runtimeParameter": "gcp_region"
+              }
+            }
+          }
+        },
+        "taskInfo": {
+          "name": "Create endpoint"
+        }
+      },
+      {
+        "executorLabel": "Deploy automl tabular model",
+        "taskInfo": {
+          "name": "Deploy automl tabular model"
+        },
+        "inputs": {
+          "parameters": {
+            "api_endpoint": {
+              "runtimeValue": {
+                "runtimeParameter": "api_endpoint"
+              }
+            },
+            "project": {
+              "runtimeValue": {
+                "runtimeParameter": "gcp_project_id"
+              }
+            },
+            "timeout": {
+              "runtimeValue": {
+                "runtimeParameter": "timeout"
+              }
+            },
+            "thresholds_dict_str": {
+              "runtimeValue": {
+                "runtimeParameter": "thresholds_dict_str"
+              }
+            },
+            "deployed_model_display_name": {
+              "taskOutputParameter": {
+                "producerTask": "Training tabular regression",
+                "outputParameterKey": "model_dispname"
+              }
+            },
+            "location": {
+              "runtimeValue": {
+                "runtimeParameter": "gcp_region"
+              }
+            },
+            "endpoint_name": {
+              "taskOutputParameter": {
+                "outputParameterKey": "endpoint_id",
+                "producerTask": "Create endpoint"
+              }
+            },
+            "eval_info": {
+              "taskOutputParameter": {
+                "producerTask": "Get model evaluation tabular",
+                "outputParameterKey": "eval_info"
+              }
+            },
+            "model_name": {
+              "taskOutputParameter": {
+                "producerTask": "Training tabular regression",
+                "outputParameterKey": "model_id"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "schemaVersion": "v2alpha1"
+  },
+  "runtimeConfig": {
+    "gcsOutputDirectory": "gs://jk-ucaip-labs/pipeline_root/jarekk"
+  }
+}

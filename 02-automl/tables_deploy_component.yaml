@@ -1,0 +1,106 @@
+name: Deploy automl tabular model
+inputs:
+- {name: project, type: String}
+- {name: endpoint_name, type: String}
+- {name: model_name, type: String}
+- {name: deployed_model_display_name, type: String}
+- {name: eval_info, type: String}
+- {name: location, type: String, default: us-central1, optional: true}
+- {name: api_endpoint, type: String, default: us-central1-aiplatform.googleapis.com,
+  optional: true}
+- {name: timeout, type: Integer, default: '7200', optional: true}
+- {name: thresholds_dict_str, type: String, default: '{"meanAbsoluteError": 470}',
+  optional: true}
+implementation:
+  container:
+    image: gcr.io/jk-mlops-dev/custom-container-ucaip:jarekk
+    command:
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp)
+      printf "%s" "$0" > "$program_path"
+      python3 -u "$program_path" "$@"
+    - "def deploy_automl_tabular_model(\n    project,\n    endpoint_name,\n    model_name,\n\
+      \    deployed_model_display_name,\n    eval_info,\n    location = \"us-central1\"\
+      ,\n    api_endpoint = \"us-central1-aiplatform.googleapis.com\",\n    timeout\
+      \ = 7200,\n    thresholds_dict_str = '{\"meanAbsoluteError\": 470}'\n):\n  import\
+      \ json\n  import logging\n  from google.cloud import aiplatform\n\n  # check\
+      \ the model metrics against the given thresholds dict\n  def regression_thresholds_check(metrics_dict,\
+      \ thresholds_dict):\n    for k, v in thresholds_dict.items():\n      logging.info('k\
+      \ {}, v {}'.format(k, v))\n      if k in ['rootMeanSquaredError', 'meanAbsoluteError']:\
+      \  # lower is better\n        if metrics_dict[k] > v:  # if over threshold\n\
+      \          logging.info('{} > {}; returning False'.format(\n              metrics_dict[k],\
+      \ v))\n          return False\n      elif k in ['rSquared']:  # higher is better\n\
+      \        if metrics_dict[k] < v:  # if under threshold\n          logging.info('{}\
+      \ < {}; returning False'.format(\n              metrics_dict[k], v))\n     \
+      \     return False\n      else:  # unhandled key in thresholds dict\n      \
+      \  # TODO: should the default instead be to deploy?\n        logging.info('unhandled\
+      \ threshold key %s; not deploying', k)\n        return False\n    logging.info('threshold\
+      \ checks passed.')\n    return True  \n\n  logging.getLogger().setLevel(logging.INFO)\n\
+      \  metrics_dict = json.loads(eval_info)\n  thresholds_dict = json.loads(thresholds_dict_str)\n\
+      \  logging.info('got metrics dict: %s', metrics_dict)\n  logging.info('got thresholds\
+      \ dict: %s', thresholds_dict)\n  deploy = regression_thresholds_check(metrics_dict,\
+      \ thresholds_dict)\n  if not deploy:\n    # then don't deploy the model\n  \
+      \  logging.warning('model is not accurate enough to deploy')\n    return \n\n\
+      \  client_options = {\"api_endpoint\": api_endpoint}\n  # Initialize client\
+      \ that will be used to create and send requests.\n  client = aiplatform.gapic.EndpointServiceClient(client_options=client_options)\n\
+      \  deployed_model = {\n      # format: 'projects/{project}/locations/{location}/models/{model}'\n\
+      \      \"model\": model_name,\n      \"display_name\": deployed_model_display_name,\n\
+      \      \"dedicated_resources\": {\n          \"min_replica_count\": 1,\n   \
+      \       \"machine_spec\": {\n              \"machine_type\": \"n1-standard-8\"\
+      ,\n              # Accelerators can be used only if the model specifies a GPU\
+      \ image.\n              # 'accelerator_type': aiplatform.AcceleratorType.NVIDIA_TESLA_K80,\n\
+      \              # 'accelerator_count': 1,\n          },\n      }        \n  }\n\
+      \  # key '0' assigns traffic for the newly deployed model\n  # Traffic percentage\
+      \ values must add up to 100\n  # Leave dictionary empty if endpoint should not\
+      \ accept any traffic\n  traffic_split = {\"0\": 100}\n  response = client.deploy_model(\n\
+      \      endpoint=endpoint_name, deployed_model=deployed_model, traffic_split=traffic_split\n\
+      \  )\n  print(\"Long running operation:\", response.operation.name)\n  deploy_model_response\
+      \ = response.result(timeout=timeout)\n  print(\"deploy_model_response:\", deploy_model_response)\n\
+      \nimport argparse\n_parser = argparse.ArgumentParser(prog='Deploy automl tabular\
+      \ model', description='')\n_parser.add_argument(\"--project\", dest=\"project\"\
+      , type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+      --endpoint-name\", dest=\"endpoint_name\", type=str, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--model-name\", dest=\"model_name\", type=str, required=True,\
+      \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--deployed-model-display-name\"\
+      , dest=\"deployed_model_display_name\", type=str, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--eval-info\", dest=\"eval_info\", type=str, required=True,\
+      \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--location\", dest=\"location\"\
+      , type=str, required=False, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+      --api-endpoint\", dest=\"api_endpoint\", type=str, required=False, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--timeout\", dest=\"timeout\", type=int, required=False,\
+      \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--thresholds-dict-str\"\
+      , dest=\"thresholds_dict_str\", type=str, required=False, default=argparse.SUPPRESS)\n\
+      _parsed_args = vars(_parser.parse_args())\n\n_outputs = deploy_automl_tabular_model(**_parsed_args)\n"
+    args:
+    - --project
+    - {inputValue: project}
+    - --endpoint-name
+    - {inputValue: endpoint_name}
+    - --model-name
+    - {inputValue: model_name}
+    - --deployed-model-display-name
+    - {inputValue: deployed_model_display_name}
+    - --eval-info
+    - {inputValue: eval_info}
+    - if:
+        cond: {isPresent: location}
+        then:
+        - --location
+        - {inputValue: location}
+    - if:
+        cond: {isPresent: api_endpoint}
+        then:
+        - --api-endpoint
+        - {inputValue: api_endpoint}
+    - if:
+        cond: {isPresent: timeout}
+        then:
+        - --timeout
+        - {inputValue: timeout}
+    - if:
+        cond: {isPresent: thresholds_dict_str}
+        then:
+        - --thresholds-dict-str
+        - {inputValue: thresholds_dict_str}
